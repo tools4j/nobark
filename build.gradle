@@ -1,0 +1,161 @@
+group 'org.tools4j'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: "com.github.hierynomus.license"
+
+archivesBaseName = "tools4j-nobark"
+
+def generatedSrcName = "generated-src"
+def generatedSrc = "$buildDir/$generatedSrcName"
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+buildscript {
+	repositories {
+		mavenCentral()
+		jcenter()
+	}
+	
+	dependencies {
+        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
+        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.11.0"
+//        classpath "org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.2"
+	}
+}
+
+dependencies {
+    testCompile 'org.agrona:agrona:0.9.13'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.hdrhistogram:HdrHistogram:2.1.9'
+
+}
+
+uploadArchives {
+    repositories {
+       flatDir {
+           dirs 'build/repositories'
+       }
+    }
+}
+
+task copyLicense(type: Copy) {
+    from('.')
+    into('build/resources/main/')
+    include('LICENSE.md')
+    rename('LICENSE.md', 'LICENSE.txt')
+}
+
+task copyLicenseToSrc(type: Copy) {
+    from('build/resources/main/')
+    into(generatedSrc)
+    include('LICENSE.txt')
+}
+
+license {
+    header rootProject.file('src/main/resources/LICENSE.template')
+    strictCheck true
+	include "**/*.java"
+	ext.year = Calendar.getInstance().get(Calendar.YEAR)
+}
+
+copyLicense.dependsOn processResources
+copyLicenseToSrc.dependsOn copyLicense
+compileJava.dependsOn licenseFormat,copyLicense,copyLicenseToSrc
+
+javadoc {
+	options.showFromPackage()
+	options.linkSource()
+	options.links("http://docs.oracle.com/javase/8/docs/api/")
+	options.windowTitle = "${archivesBaseName} API ${version}"
+	options.overview = "src/main/java/overview.html"
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+//snapshot first, then release:
+//gradle clean uploadArchives -Pupload -PossrhUsername=xxx -PossrhPassword=xxx
+if (project.hasProperty('upload')) {
+
+    allprojects {
+        apply plugin: 'signing'
+        apply plugin: 'maven'
+        apply plugin: 'io.codearte.nexus-staging'
+
+        // Signature of artifacts
+        signing {
+            sign configurations.archives
+        }
+
+        // OSSRH publication
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    beforeDeployment {
+                        MavenDeployment deployment -> signing.signPom(deployment)
+                    }
+                    repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
+                    }
+                    snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
+                    }
+
+                    pom.project {
+                        name "${archivesBaseName}"
+                        packaging 'jar'
+                        // optionally artifactId can be defined here
+                        description 'A library with low latency zero gc data structures and utilities.'
+                        url 'https://github.com/tools4j/nobark'
+
+                        scm {
+                            connection 'scm:git:https://github.com/tools4j/nobark.git'
+                            developerConnection 'scm:git:https://github.com/tools4j/nobark.git'
+                            url 'https://github.com/tools4j/nobark.git'
+                        }
+                        licenses {
+                            license {
+                                name 'MIT License'
+                                url 'http://opensource.org/licenses/MIT'
+                            }
+                        }
+
+                        developers {
+                            developer {
+                                id 'terzerm'
+                                name 'Marco Terzer'
+                            }
+                            developer {
+                                id 'anton-anufriev'
+                                name 'Anton Anufriev'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        nexusStaging {
+            username = ossrhUsername
+            password = ossrhPassword
+        }
+    }
+}
