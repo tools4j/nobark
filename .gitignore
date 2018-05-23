@@ -6,6 +6,7 @@
 *.iml
 .gradle
 gradle.settings
+gradle.properties
 bin
 build
 out
