@@ -99,9 +99,8 @@ public interface ConflationQueue<K,V> {
      */
     interface Poller<K, V> {
         /**
-         * Polls the queue passing an unused value in exchange to the queue.  The given consumer is invoked with
-         * conflation key and polled value if the queue was non-empty and the value is returned.  If the queue was
-         * empty, null is returned.
+         * Polls the queue passing a consumer which is invoked with conflation key and polled value if the queue was
+         * non-empty.  Returns the polled value if any value was present in the queue, or null if the queue was empty.
          *
          * @param consumer consumer for conflation key and polled value
          * @return the polled value, or null if the queue was empty
