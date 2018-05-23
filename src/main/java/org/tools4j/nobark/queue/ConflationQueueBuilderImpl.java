@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 process (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,12 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Supplier;
 
+/**
+ * Package local builder implementation as returned by the static methods of {@link ConflationQueueBuilder}.
+ *
+ * @param <K> the conflation key type
+ * @param <V> the value type
+ */
 class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
 
     private final CqFactory<K,V> cqFactory;
@@ -66,19 +72,53 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         return cqFactory.atomicQueue(queueFactory, appenderListenerSupplier, pollerListenerSupplier);
     }
 
+    /**
+     * Builder-internal factory for different types of conflation queues.
+     *
+     * @param <K> the conflation key type
+     * @param <V> the value type
+     */
     interface CqFactory<K,V> {
+        /**
+         * Factory method for {@link AtomicConflationQueue}
+         * @param queueFactory factory for the backing queue
+         * @param appenderListenerSupplier  supplier acting as appender listener factory
+         * @param pollerListenerSupplier    supplier acting as poller listener factory
+         * @return a new {@link AtomicConflationQueue} instance
+         */
         AtomicConflationQueue<K,V> atomicQueue(Supplier<? extends Queue<Object>> queueFactory,
                                                Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                                Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier);
+        /**
+         * Factory method for {@link EvictConflationQueue}.
+         * @param queueFactory factory for the backing queue
+         * @param appenderListenerSupplier  supplier acting as appender listener factory
+         * @param pollerListenerSupplier    supplier acting as poller listener factory
+         * @return a new {@link EvictConflationQueue} instance
+         */
         EvictConflationQueue<K,V> evictQueue(Supplier<? extends Queue<Object>> queueFactory,
                                              Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                              Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier);
+        /**
+         * Factory method for {@link MergeConflationQueue}.
+         * @param queueFactory  factory for the backing queue
+         * @param merger        merge strategy to use when conflation occurs
+         * @param appenderListenerSupplier  supplier acting as appender listener factory
+         * @param pollerListenerSupplier    supplier acting as poller listener factory
+         * @return a new {@link MergeConflationQueue} instance
+         */
         MergeConflationQueue<K,V> mergeQueue(Supplier<? extends Queue<Object>> queueFactory,
                                              Merger<? super K, V> merger,
                                              Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                              Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier);
     }
 
+    /**
+     * Default builder for the case that no conflation keys are declared.
+     *
+     * @param <K> the conflation key type
+     * @param <V> the value type
+     */
     static class DefaultBuilder<K,V> extends ConflationQueueBuilderImpl<K,V> {
         DefaultBuilder() {
             super(new CqFactory<K, V>() {
@@ -107,6 +147,12 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         }
     }
 
+    /**
+     * Builder for enum conflation key types.
+     *
+     * @param <K> the conflation key type
+     * @param <V> the value type
+     */
     static class EnumKeyBuilder<K extends Enum<K>,V> extends ConflationQueueBuilderImpl<K,V> {
         EnumKeyBuilder(final Class<K> enumConflationKeyClass) {
             super(new CqFactory<K, V>() {
@@ -135,6 +181,12 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         }
     }
 
+    /**
+     * Builder for the case that conflation keys are declared.
+     *
+     * @param <K> the conflation key type
+     * @param <V> the value type
+     */
     static class DeclaredKeysBuilder<K,V> extends ConflationQueueBuilderImpl<K,V> {
         DeclaredKeysBuilder(final List<? extends K> allConflationKeys) {
             super(new CqFactory<K, V>() {
@@ -163,6 +215,9 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         }
     }
 
+    /**
+     * Builder for {@link EvictConflationQueue}.
+     */
     class EvictConflationQueueBuilder implements ExchangeConflationQueueBuilder<K,V> {
         @Override
         public EvictConflationQueueBuilder withAppenderListener(final Supplier<? extends AppenderListener<? super K, ? super V>> listenerSupplier) {
@@ -182,6 +237,9 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         }
     }
 
+    /**
+     * Builder for {@link MergeConflationQueue}.
+     */
     class MergeConflationQueueBuilder implements ExchangeConflationQueueBuilder<K,V> {
         private final Merger<? super K, V> merger;
         MergeConflationQueueBuilder(final Merger<? super K, V> merger) {

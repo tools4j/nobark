@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 process (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,50 +28,191 @@ import java.util.List;
 import java.util.Queue;
 import java.util.function.Supplier;
 
+/**
+ * Builder for the different types of conflation queues serving as alternative to the queue constructors;  a builder is
+ * returned by the static methods of this interface.
+ *
+ * @param <K> the type of the conflation key
+ * @param <V> the type of elements in the queue
+ */
 public interface ConflationQueueBuilder<K,V> {
 
+    /**
+     * Creates an initial builder;  use this method only when conflation keys are not known in advance
+     * @return a new builder
+     *
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     */
     static <K,V> ConflationQueueBuilder<K,V> builder() {
         return new ConflationQueueBuilderImpl.DefaultBuilder<>();
     }
 
-    static <K,V> ConflationQueueBuilder<K,V> builder(Class<K> keyClass, Class<V> valueClass) {
+    /**
+     * Creates an initial builder;  use this method only when conflation keys are not known in advance.
+     *
+     * @param keyType   the type of the conflation key, used only to infer the generic type of the builder
+     * @param valueType the type of elements in the queue, used only to infer the generic type of the builder
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K,V> ConflationQueueBuilder<K,V> builder(final Class<K> keyType, final Class<V> valueType) {
         return new ConflationQueueBuilderImpl.DefaultBuilder<>();
     }
 
+    /**
+     * Creates an initial builder given all conflation keys (exhaustive!).
+     *
+     * @param allConflationKeys an exhaustive list of all conflation keys that will ever be used for the queue
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
     @SafeVarargs
-    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(K... allConflationKeys) {
+    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(final K... allConflationKeys) {
         //NOTE: this creates garbage
         return declareAllConflationKeys(Arrays.asList(allConflationKeys));
     }
 
-    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(List<K> allConflationKeys) {
+    /**
+     * Creates an initial builder given all conflation keys (exhaustive!).
+     *
+     * @param allConflationKeys an exhaustive list of all conflation keys that will ever be used for the queue
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(final List<K> allConflationKeys) {
         return new ConflationQueueBuilderImpl.DeclaredKeysBuilder<>(allConflationKeys);
     }
 
-    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(List<K> allConflationKeys, Class<V> valuetType) {
+    /**
+     * Creates an initial builder given all conflation keys (exhaustive!).
+     *
+     * @param allConflationKeys an exhaustive list of all conflation keys that will ever be used for the queue
+     * @param valueType         the type of elements in the queue, used only to infer the generic type of the builder
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(final List<K> allConflationKeys,
+                                                                      final Class<V> valueType) {
         return new ConflationQueueBuilderImpl.DeclaredKeysBuilder<>(allConflationKeys);
     }
 
-    static <K extends Enum<K>,V> ConflationQueueBuilder<K,V> forEnumConflationKey(Class<K> conflationKeyClass) {
-        return new ConflationQueueBuilderImpl.EnumKeyBuilder<>(conflationKeyClass);
+    /**
+     * Creates an initial builder given the enum conflation key class.
+     *
+     * @param keyType   the type of the conflation key
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K extends Enum<K>,V> ConflationQueueBuilder<K,V> forEnumConflationKey(final Class<K> keyType) {
+        return new ConflationQueueBuilderImpl.EnumKeyBuilder<>(keyType);
     }
 
-    static <K extends Enum<K>,V> ConflationQueueBuilder<K,V> forEnumConflationKey(Class<K> conflationKeyClass, Class<V> valueType) {
-        return new ConflationQueueBuilderImpl.EnumKeyBuilder<>(conflationKeyClass);
+    /**
+     * Creates an initial builder given the enum conflation key class.
+     *
+     * @param keyType   the type of the conflation key
+     * @param valueType the type of elements in the queue, used only to infer the generic type of the builder
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K extends Enum<K>,V> ConflationQueueBuilder<K,V> forEnumConflationKey(final Class<K> keyType,
+                                                                                  final Class<V> valueType) {
+        return new ConflationQueueBuilderImpl.EnumKeyBuilder<>(keyType);
     }
 
+    /**
+     * Register a listener as created by the specified supplier when creating queue appenders.  The created listeners
+     * must be thread safe for multi-producer queues, e.g. consider using
+     * {@link AppenderListener#threadLocalSupplier(Supplier)}.
+     *
+     * @param listenerSupplier  a listener supplier acting as listener factory
+     * @return the builder
+     */
     ConflationQueueBuilder<K,V> withAppenderListener(Supplier<? extends AppenderListener<? super K, ? super V>> listenerSupplier);
+
+    /**
+     * Register a listener as created by the specified supplier when creating queue pollers.  The created listeners
+     * must be thread safe for multi-consumer queues, e.g. consider using
+     * {@link PollerListener#threadLocalSupplier(Supplier)}.
+     *
+     * @param listenerSupplier  a listener supplier acting as listener factory
+     * @return the builder
+     */
     ConflationQueueBuilder<K,V> withPollerListener(Supplier<? extends PollerListener<? super K, ? super V>> listenerSupplier);
 
+    /**
+     * Switch builder mode to create a conflation queue that allows exchanging of elements between the consumer and the
+     * producer, that is, the builder will now create a {@link ExchangeConflationQueue}.
+     *
+     * @return a builder for an {@link ExchangeConflationQueue}, more specifically an {@link EvictConflationQueue}
+     * @see ExchangeConflationQueue
+     * @see EvictConflationQueue
+     * @see #withMerging(Merger)
+     */
     ExchangeConflationQueueBuilder<K,V> withExchangeValueSupport();
+
+    /**
+     * Switch builder mode to create a conflation queue that supports merging of old and new values when conflation
+     * occurs, that is, the builder will now create a {@link MergeConflationQueue}.
+     *
+     * @param merger merge strategy to use when conflation occurs
+     * @return a builder for an {@link ExchangeConflationQueue}, more specifically a {@link MergeConflationQueue}
+     * @see ExchangeConflationQueue
+     * @see MergeConflationQueue
+     * @see #withExchangeValueSupport()
+     */
     ExchangeConflationQueueBuilder<K,V> withMerging(Merger<? super K, V> merger);
 
+    /**
+     * Builds and returns a new conflation queue instance using the given queue factory for the backing queue.  The
+     * backing queue determines whether single or multiple producers and consumers are supported.
+     *
+     * @param queueFactory the factory to create the backing queue
+     * @return a new conflation queue instance
+     */
     ConflationQueue<K,V> build(Supplier<? extends Queue<Object>> queueFactory);
 
+    /**
+     * Builder for {@link ExchangeConflationQueue} subtypes.
+     *
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     */
     interface ExchangeConflationQueueBuilder<K,V> {
+        /**
+         * Register a listener as created by the specified supplier when creating queue appenders.  The created listeners
+         * must be thread safe for multi-producer queues, e.g. consider using
+         * {@link AppenderListener#threadLocalSupplier(Supplier)}.
+         *
+         * @param listenerSupplier  a listener supplier acting as listener factory
+         * @return the builder
+         */
         ExchangeConflationQueueBuilder<K,V> withAppenderListener(Supplier<? extends AppenderListener<? super K, ? super V>> listenerSupplier);
+
+        /**
+         * Register a listener as created by the specified supplier when creating queue pollers.  The created listeners
+         * must be thread safe for multi-consumer queues, e.g. consider using
+         * {@link PollerListener#threadLocalSupplier(Supplier)}.
+         *
+         * @param listenerSupplier  a listener supplier acting as listener factory
+         * @return the builder
+         */
         ExchangeConflationQueueBuilder<K,V> withPollerListener(Supplier<? extends PollerListener<? super K, ? super V>> listenerSupplier);
 
+        /**
+         * Builds and returns a new exchange conflation queue instance using the given queue factory for the backing
+         * queue.  The backing queue determines whether single or multiple producers and consumers are supported.
+         *
+         * @param queueFactory the factory to create the backing queue
+         * @return a new exchange conflation queue instance
+         */
         ExchangeConflationQueue<K,V> build(Supplier<? extends Queue<Object>> queueFactory);
     }
 }

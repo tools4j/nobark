@@ -21,25 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.queue;
-
 /**
- * Merger strategy passed to some conflation queues upon construction to support merging of values when conflation
- * occurs.
- *
- * @param <K> the type of the conflation key
- * @param <V> the type of values in the queue
+ * Provides interfaces and different implementations of {@link org.tools4j.nobark.queue.ConflationQueue conflation queues} --
+ * efficient lock-free queues with a built-in safety mechanism to prevent overflow by the producer.
  */
-@FunctionalInterface
-public interface Merger<K,V> {
-    /**
-     * Method called to merge two values;  the merged value is returned.
-     *
-     * @param conflationKey the conflation key
-     * @param olderValue    the older value that was already present in the queue
-     * @param newValue      the newer value that is currently being added to the queue
-     * @return  the merged value; can be {@code newValue} itself but should not be {@code olderValue} as this instance
-     *          is returned by the enqueue method and may be reused by the producer
-     */
-    V merge(K conflationKey, V olderValue, V newValue);
-}
+package org.tools4j.nobark.queue;

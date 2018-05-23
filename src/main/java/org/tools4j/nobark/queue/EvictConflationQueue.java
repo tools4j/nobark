@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 process (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -78,18 +78,18 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Constructor with queue cqFactory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      */
     public EvictConflationQueue(final Supplier<? extends Queue<Object>> queueFactory) {
         this(queueFactory, () -> AppenderListener.NOOP, () -> PollerListener.NOOP);
     }
 
     /**
-     * Constructor with queue cqFactory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      * @param appenderListenerSupplier a supplier for a listener to monitor the enqueue operations
      * @param pollerListenerSupplier a supplier for a listener to monitor the poll operations
      */
@@ -100,10 +100,10 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Constructor with queue cqFactory and the exhaustive list of conflation keys.  A hash map is pre-initialized with
+     * Constructor with queue factory and the exhaustive list of conflation keys.  A hash map is pre-initialized with
      * all the conflation keys and pre-allocated entries.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      * @param allConflationKeys all conflation keys that will ever be used with this conflation queue instance
      */
     public EvictConflationQueue(final Supplier<? extends Queue<Object>> queueFactory,
@@ -112,10 +112,10 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Constructor with queue cqFactory and the exhaustive list of conflation keys.  A hash map is pre-initialized with
+     * Constructor with queue factory and the exhaustive list of conflation keys.  A hash map is pre-initialized with
      * all the conflation keys and pre-allocated entries.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      * @param allConflationKeys all conflation keys that will ever be used with this conflation queue instance
      * @param appenderListenerSupplier a supplier for a listener to monitor the enqueue operations
      * @param pollerListenerSupplier a supplier for a listener to monitor the poll operations
@@ -128,10 +128,10 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Static constructor method for a conflation queue with queue cqFactory and the conflation key enum class.  An enum
+     * Static constructor method for a conflation queue with queue factory and the conflation key enum class.  An enum
      * map is pre-initialized with all the conflation keys and pre-allocated entries.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      * @param conflationKeyClass the conflation key enum class
      * @param <K> the type of the conflation key
      * @param <V> the type of elements in the queue
@@ -143,10 +143,10 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Static constructor method for a conflation queue with queue cqFactory and the conflation key enum class.  An enum
+     * Static constructor method for a conflation queue with queue factory and the conflation key enum class.  An enum
      * map is pre-initialized with all the conflation keys and pre-allocated entries.
      *
-     * @param queueFactory the cqFactory to create the backing queue
+     * @param queueFactory the factory to create the backing queue
      * @param conflationKeyClass the conflation key enum class
      * @param appenderListenerSupplier a supplier for a listener to monitor the enqueue operations
      * @param pollerListenerSupplier a supplier for a listener to monitor the poll operations
