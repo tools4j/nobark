@@ -42,8 +42,8 @@ final class Factories {
      * @return a typed queue
      */
     static <V> Queue<V> createQueue(final Supplier<? extends Queue<Object>> factory) {
-        //NOTE: casting a createQueue that takes objects to a specific typed createQueue is fine as long as we only add those typed
-        //      values to the createQueue
+        //NOTE: casting a queue that takes objects to a specific typed queue is fine as long as we only add those typed
+        //      values to the queue
         @SuppressWarnings({"unchecked"})
         final Queue<V> typed = (Queue<V>)factory.get();
         return typed;

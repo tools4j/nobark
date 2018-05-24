@@ -114,13 +114,13 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
 
     /**
      * Returns an {@link Appender} whose {@link Appender#enqueue(Object, Object) enqueue(..)} method is guaranteed to
-     * never return null.  If the unsafe appender returns null on enqueue e.g. because the createQueue is empty and no
+     * never return null.  If the unsafe appender returns null on enqueue e.g. because the queue is empty and no
      * exchange values can be retrieved yet, the specified factory is used to create a value.
      *
      * @param unsafeAppender    the unsafe appender possibly returning null values on enqueue
      * @param valueFactory      the value factory used if the unsafe enqueuing operation returned null
      * @param <K> the type of the conflation key
-     * @param <V> the type of values in the createQueue
+     * @param <V> the type of values in the queue
      * @return a null-safe version of the appender that never returns null values when enqueuing values
      */
     static <K,V> Appender<K, V> nullSafe(final Appender<K,V> unsafeAppender,

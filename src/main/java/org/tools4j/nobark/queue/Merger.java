@@ -28,7 +28,7 @@ package org.tools4j.nobark.queue;
  * occurs.
  *
  * @param <K> the type of the conflation key
- * @param <V> the type of values in the createQueue
+ * @param <V> the type of values in the queue
  */
 @FunctionalInterface
 public interface Merger<K,V> {
@@ -36,8 +36,8 @@ public interface Merger<K,V> {
      * Method called to merge two values;  the merged value is returned.
      *
      * @param conflationKey the conflation key
-     * @param olderValue    the older value that was already present in the createQueue
-     * @param newValue      the newer value that is currently being added to the createQueue
+     * @param olderValue    the older value that was already present in the queue
+     * @param newValue      the newer value that is currently being added to the queue
      * @return  the merged value; can be {@code newValue} itself but should not be {@code olderValue} as this instance
      *          is returned by the enqueue method and may be reused by the producer
      */
