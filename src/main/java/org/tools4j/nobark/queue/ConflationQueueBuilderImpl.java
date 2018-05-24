@@ -24,6 +24,7 @@
 package org.tools4j.nobark.queue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Supplier;
@@ -148,6 +149,40 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
     }
 
     /**
+     * Builder for the case that an entry map factory has been provided.
+     *
+     * @param <K> the conflation key type
+     * @param <V> the value type
+     */
+    static class EntryMapFactoryBuilder<K,V> extends ConflationQueueBuilderImpl<K,V> {
+        EntryMapFactoryBuilder(final Supplier<? extends Map<Object,Object>> entryMapFactory) {
+            super(new CqFactory<K, V>() {
+                @Override
+                public AtomicConflationQueue<K, V> atomicQueue(Supplier<? extends Queue<Object>> queueFactory,
+                                                               Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
+                                                               Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
+                    return new AtomicConflationQueue<>(queueFactory, entryMapFactory, appenderListenerSupplier.get(), pollerListenerSupplier.get());
+                }
+
+                @Override
+                public EvictConflationQueue<K, V> evictQueue(Supplier<? extends Queue<Object>> queueFactory,
+                                                             Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
+                                                             Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
+                    return new EvictConflationQueue<>(queueFactory, entryMapFactory, appenderListenerSupplier, pollerListenerSupplier);
+                }
+
+                @Override
+                public MergeConflationQueue<K, V> mergeQueue(Supplier<? extends Queue<Object>> queueFactory,
+                                                             Merger<? super K, V> merger,
+                                                             Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
+                                                             Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
+                    return new MergeConflationQueue<>(queueFactory, entryMapFactory, merger, appenderListenerSupplier, pollerListenerSupplier);
+                }
+            });
+        }
+    }
+
+    /**
      * Builder for enum conflation key types.
      *
      * @param <K> the conflation key type
@@ -261,5 +296,7 @@ class ConflationQueueBuilderImpl<K,V> implements ConflationQueueBuilder<K,V> {
         public MergeConflationQueue<K, V> build(final Supplier<? extends Queue<Object>> queueFactory) {
             return cqFactory.mergeQueue(queueFactory, merger, appenderListenerSupplier, pollerListenerSupplier);
         }
+
+
     }
 }

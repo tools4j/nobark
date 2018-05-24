@@ -25,6 +25,7 @@ package org.tools4j.nobark.queue;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.function.Supplier;
 
@@ -39,10 +40,10 @@ public interface ConflationQueueBuilder<K,V> {
 
     /**
      * Creates an initial builder;  use this method only when conflation keys are not known in advance
-     * @return a new builder
      *
      * @param <K> the type of the conflation key
      * @param <V> the type of elements in the queue
+     * @return a new builder
      */
     static <K,V> ConflationQueueBuilder<K,V> builder() {
         return new ConflationQueueBuilderImpl.DefaultBuilder<>();
@@ -57,8 +58,39 @@ public interface ConflationQueueBuilder<K,V> {
      * @param <V> the type of elements in the queue
      * @return a new builder
      */
-    static <K,V> ConflationQueueBuilder<K,V> builder(final Class<K> keyType, final Class<V> valueType) {
+    static <K,V> ConflationQueueBuilder<K,V> builder(@SuppressWarnings("unused") final Class<K> keyType,
+                                                     @SuppressWarnings("unused") final Class<V> valueType) {
         return new ConflationQueueBuilderImpl.DefaultBuilder<>();
+    }
+
+    /**
+     * Creates an initial builder;  use this method only when conflation keys are not known in advance.  If multiple
+     * producers are used, the map returned by the given map factory should be thread-safe.
+     *
+     * @param entryMapFactory the factory to create the map that manages entries per conflation key
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K,V> ConflationQueueBuilder<K,V> builder(final Supplier<? extends Map<Object,Object>> entryMapFactory) {
+        return new ConflationQueueBuilderImpl.EntryMapFactoryBuilder<>(entryMapFactory);
+    }
+
+    /**
+     * Creates an initial builder;  use this method only when conflation keys are not known in advance.  If multiple
+     * producers are used, the map returned by the given map factory should be thread-safe.
+     *
+     * @param keyType   the type of the conflation key, used only to infer the generic type of the builder
+     * @param valueType the type of elements in the queue, used only to infer the generic type of the builder
+     * @param entryMapFactory the factory to create the map that manages entries per conflation key
+     * @param <K> the type of the conflation key
+     * @param <V> the type of elements in the queue
+     * @return a new builder
+     */
+    static <K,V> ConflationQueueBuilder<K,V> builder(@SuppressWarnings("unused") final Class<K> keyType,
+                                                     @SuppressWarnings("unused") final Class<V> valueType,
+                                                     final Supplier<? extends Map<Object,Object>> entryMapFactory) {
+        return new ConflationQueueBuilderImpl.EntryMapFactoryBuilder<>(entryMapFactory);
     }
 
     /**
@@ -97,7 +129,7 @@ public interface ConflationQueueBuilder<K,V> {
      * @return a new builder
      */
     static <K,V> ConflationQueueBuilder<K,V> declareAllConflationKeys(final List<K> allConflationKeys,
-                                                                      final Class<V> valueType) {
+                                                                      @SuppressWarnings("unused") final Class<V> valueType) {
         return new ConflationQueueBuilderImpl.DeclaredKeysBuilder<>(allConflationKeys);
     }
 
@@ -123,7 +155,7 @@ public interface ConflationQueueBuilder<K,V> {
      * @return a new builder
      */
     static <K extends Enum<K>,V> ConflationQueueBuilder<K,V> forEnumConflationKey(final Class<K> keyType,
-                                                                                  final Class<V> valueType) {
+                                                                                  @SuppressWarnings("unused") final Class<V> valueType) {
         return new ConflationQueueBuilderImpl.EnumKeyBuilder<>(keyType);
     }
 

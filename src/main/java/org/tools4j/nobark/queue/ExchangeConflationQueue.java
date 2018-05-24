@@ -81,10 +81,10 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
     /**
      * Returns an {@link ExchangeConflationQueue} whose appender is guaranteed to never return null on enqueue.  If the
      * unsafe queue returns null on enqueue e.g. because the queue is empty and no exchange values can be retrieved yet,
-     * the specified cqFactory is used to create a value.
+     * the specified factory is used to create a value.
      *
      * @param unsafeQueue   the unsafe queue possibly returning null values on enqueue
-     * @param valueFactory  the value cqFactory used if the unsafe queue returned null when a value was enqueued
+     * @param valueFactory  the value factory used if the unsafe queue returned null when a value was enqueued
      * @param <K> the type of the conflation key
      * @param <V> the type of values in the queue
      * @return a null-safe version of the queue that never returns null values when enqueuing values
@@ -114,13 +114,13 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
 
     /**
      * Returns an {@link Appender} whose {@link Appender#enqueue(Object, Object) enqueue(..)} method is guaranteed to
-     * never return null.  If the unsafe appender returns null on enqueue e.g. because the queue is empty and no
-     * exchange values can be retrieved yet, the specified cqFactory is used to create a value.
+     * never return null.  If the unsafe appender returns null on enqueue e.g. because the createQueue is empty and no
+     * exchange values can be retrieved yet, the specified factory is used to create a value.
      *
      * @param unsafeAppender    the unsafe appender possibly returning null values on enqueue
-     * @param valueFactory      the value cqFactory used if the unsafe enqueuing operation returned null
+     * @param valueFactory      the value factory used if the unsafe enqueuing operation returned null
      * @param <K> the type of the conflation key
-     * @param <V> the type of values in the queue
+     * @param <V> the type of values in the createQueue
      * @return a null-safe version of the appender that never returns null values when enqueuing values
      */
     static <K,V> Appender<K, V> nullSafe(final Appender<K,V> unsafeAppender,
@@ -130,7 +130,7 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
         return (k, v) -> {
             final V value = unsafeAppender.enqueue(k, v);
             return value == null ?
-                    Objects.requireNonNull(valueFactory.apply(k), "value cqFactory returned null") :
+                    Objects.requireNonNull(valueFactory.apply(k), "value factory returned null") :
                     value;
         };
     }

@@ -50,8 +50,8 @@ import java.util.function.Supplier;
  */
 public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
 
-    private final Map<K,Entry<K,MarkedValue<V>>> entryMap;
     private final Queue<Entry<K,MarkedValue<V>>> queue;
+    private final Map<K,Entry<K,MarkedValue<V>>> entryMap;
 
     private final ThreadLocal<Appender<K,V>> appender = ThreadLocal.withInitial(EvictQueueAppender::new);
     private final ThreadLocal<ExchangePoller<K,V>> poller = ThreadLocal.withInitial(EvictQueuePoller::new);
@@ -59,26 +59,18 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     private final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier;
     private final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier;
 
-    @SuppressWarnings("unchecked")//casting a queue that takes objects to one that takes Entry is fine as long as we only add Entry objects
-    private EvictConflationQueue(final Map<K,Entry<K,MarkedValue<V>>> entryMap,
-                                 final Supplier<? extends Queue<Object>> queueFactory,
+    private EvictConflationQueue(final Queue<Entry<K,MarkedValue<V>>> queue,
+                                 final Map<K,Entry<K,MarkedValue<V>>> entryMap,
                                  final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                  final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
-        this(entryMap, (Queue<Entry<K,MarkedValue<V>>>)(Object)queueFactory.get(), appenderListenerSupplier, pollerListenerSupplier);
-    }
-
-    private EvictConflationQueue(final Map<K,Entry<K,MarkedValue<V>>> entryMap,
-                                 final Queue<Entry<K,MarkedValue<V>>> queue,
-                                 final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
-                                 final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
-        this.entryMap = Objects.requireNonNull(entryMap);
         this.queue = Objects.requireNonNull(queue);
+        this.entryMap = Objects.requireNonNull(entryMap);
         this.appenderListenerSupplier = Objects.requireNonNull(appenderListenerSupplier);
         this.pollerListenerSupplier = Objects.requireNonNull(pollerListenerSupplier);
     }
 
     /**
-     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to manage entries per conflation key.
      *
      * @param queueFactory the factory to create the backing queue
      */
@@ -87,16 +79,32 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
     }
 
     /**
-     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to manage entries per conflation key.
      *
-     * @param queueFactory the factory to create the backing queue
-     * @param appenderListenerSupplier a supplier for a listener to monitor the enqueue operations
-     * @param pollerListenerSupplier a supplier for a listener to monitor the poll operations
+     * @param queueFactory              the factory to create the backing queue
+     * @param appenderListenerSupplier  a supplier for a listener to monitor the enqueue operations
+     * @param pollerListenerSupplier    a supplier for a listener to monitor the poll operations
      */
     public EvictConflationQueue(final Supplier<? extends Queue<Object>> queueFactory,
                                 final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                 final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
-        this(new ConcurrentHashMap<>(), queueFactory, appenderListenerSupplier, pollerListenerSupplier);
+        this(queueFactory, ConcurrentHashMap::new, appenderListenerSupplier, pollerListenerSupplier);
+    }
+
+    /**
+     * Constructor with queue factory and entry map factory.
+     *
+     * @param queueFactory      the factory to create the backing queue
+     * @param entryMapFactory   the factory to create the map that manages entries per conflation key
+     * @param appenderListenerSupplier  a supplier for a listener to monitor the enqueue operations
+     * @param pollerListenerSupplier    a supplier for a listener to monitor the poll operations
+     */
+    public EvictConflationQueue(final Supplier<? extends Queue<Object>> queueFactory,
+                                final Supplier<? extends Map<Object, Object>> entryMapFactory,
+                                final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
+                                final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
+        this(Factories.createQueue(queueFactory), Factories.createMap(entryMapFactory), appenderListenerSupplier,
+                pollerListenerSupplier);
     }
 
     /**
@@ -124,7 +132,8 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
                                 final List<? extends K> allConflationKeys,
                                 final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                 final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
-        this(Entry.eagerlyInitialiseEntryMap(allConflationKeys, MarkedValue::new), queueFactory, appenderListenerSupplier, pollerListenerSupplier);
+        this(Factories.createQueue(queueFactory), Entry.eagerlyInitialiseEntryMap(allConflationKeys, MarkedValue::new),
+                appenderListenerSupplier, pollerListenerSupplier);
     }
 
     /**
@@ -159,7 +168,7 @@ public class EvictConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
                                                                                        final Supplier<? extends AppenderListener<? super K, ? super V>> appenderListenerSupplier,
                                                                                        final Supplier<? extends PollerListener<? super K, ? super V>> pollerListenerSupplier) {
         return new EvictConflationQueue<>(
-                Entry.eagerlyInitialiseEntryEnumMap(conflationKeyClass, MarkedValue::new), queueFactory,
+                Factories.createQueue(queueFactory), Entry.eagerlyInitialiseEntryEnumMap(conflationKeyClass, MarkedValue::new),
                 appenderListenerSupplier, pollerListenerSupplier
         );
     }

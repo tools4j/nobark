@@ -114,9 +114,9 @@ public class ConflationQueuePerfTest {
 
             printHistogram("Merge-count", 1, mergedEntriesHistogram);
             System.out.println();
-            printHistogram("In-queue latencies (us)", 1000.0, inQueueLatencyHistogram);
+            printHistogram("In-createQueue latencies (us)", 1000.0, inQueueLatencyHistogram);
             System.out.println();
-            printHistogram("Total (in-queue) latencies (us)", 1000.0, totalLatencyHistogramInQueue);
+            printHistogram("Total (in-createQueue) latencies (us)", 1000.0, totalLatencyHistogramInQueue);
             System.out.println();
             printHistogram("Last update latencies (us)", 1000.0, lastUpdateLatencyHistogram);
             System.out.println();
@@ -180,7 +180,7 @@ public class ConflationQueuePerfTest {
             }
         }
         //send sentinel to tell consumer to stop, on it's own sentinel key to ensure that no conflation occurs to
-        //ensure it is the last to come out of the queue
+        //ensure it is the last to come out of the createQueue
         priceEntry.reset();
         priceEntry.setLast(totalUpdates);
         appender.enqueue(sentinelKey, priceEntry);

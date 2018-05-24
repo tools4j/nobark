@@ -46,9 +46,8 @@ import java.util.function.Supplier;
  * @param <V> the type of elements in the queue
  */
 public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
-
-    private final Map<K,Entry<K,V>> entryMap;
     private final Queue<Entry<K,V>> queue;
+    private final Map<K,Entry<K,V>> entryMap;
 
     private final Appender<K,V> appender = new AtomicQueueAppender();
     private final Poller<K,V> poller = new AtomicQueuePoller();
@@ -56,26 +55,18 @@ public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
     private final AppenderListener<? super K, ? super V> appenderListener;
     private final PollerListener<? super K, ? super V> pollerListener;
 
-    @SuppressWarnings("unchecked")//casting a queue that takes objects to one that takes Entry is fine as long as we only add Entry objects
-    private AtomicConflationQueue(final Map<K,Entry<K,V>> entryMap,
-                                  final Supplier<? extends Queue<Object>> queueFactory,
+    private AtomicConflationQueue(final Queue<Entry<K,V>> queue,
+                                  final Map<K,Entry<K,V>> entryMap,
                                   final AppenderListener<? super K, ? super V> appenderListener,
                                   final PollerListener<? super K, ? super V> pollerListener) {
-        this(entryMap, (Queue<Entry<K,V>>)(Object)queueFactory.get(), appenderListener, pollerListener);
-    }
-
-    private AtomicConflationQueue(final Map<K,Entry<K,V>> entryMap,
-                                  final Queue<Entry<K,V>> queue,
-                                  final AppenderListener<? super K, ? super V> appenderListener,
-                                  final PollerListener<? super K, ? super V> pollerListener) {
-        this.entryMap = Objects.requireNonNull(entryMap);
         this.queue = Objects.requireNonNull(queue);
+        this.entryMap = Objects.requireNonNull(entryMap);
         this.appenderListener= Objects.requireNonNull(appenderListener);
         this.pollerListener = Objects.requireNonNull(pollerListener);
     }
 
     /**
-     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to manage entries per conflation key.
      *
      * @param queueFactory the factory to create the backing queue
      */
@@ -84,7 +75,7 @@ public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
     }
 
     /**
-     * Constructor with queue factory.  A concurrent hash map is used to to recycle entries per conflation key.
+     * Constructor with queue factory.  A concurrent hash map is used to manage entries per conflation key.
      *
      * @param queueFactory the factory to create the backing queue
      * @param appenderListener a listener to monitor the enqueue operations
@@ -93,7 +84,22 @@ public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
     public AtomicConflationQueue(final Supplier<? extends Queue<Object>> queueFactory,
                                  final AppenderListener<? super K, ? super V> appenderListener,
                                  final PollerListener<? super K, ? super V> pollerListener) {
-        this(new ConcurrentHashMap<>(), queueFactory, appenderListener, pollerListener);
+        this(queueFactory, ConcurrentHashMap::new, appenderListener, pollerListener);
+    }
+
+    /**
+     * Constructor with queue factory and entry map factory.
+     *
+     * @param queueFactory      the factory to create the backing queue
+     * @param entryMapFactory   the factory to create the map that manages entries per conflation key
+     * @param appenderListener  a listener to monitor the enqueue operations
+     * @param pollerListener    a listener to monitor the poll operations
+     */
+    public AtomicConflationQueue(final Supplier<? extends Queue<Object>> queueFactory,
+                                 final Supplier<? extends Map<Object, Object>> entryMapFactory,
+                                 final AppenderListener<? super K, ? super V> appenderListener,
+                                 final PollerListener<? super K, ? super V> pollerListener) {
+        this(Factories.createQueue(queueFactory), Factories.createMap(entryMapFactory), appenderListener, pollerListener);
     }
 
     /**
@@ -121,7 +127,8 @@ public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
                                  final List<? extends K> allConflationKeys,
                                  final AppenderListener<? super K, ? super V> appenderListener,
                                  final PollerListener<? super K, ? super V> pollerListener) {
-        this(Entry.eagerlyInitialiseEntryMap(allConflationKeys, () -> null), queueFactory, appenderListener, pollerListener);
+        this(Factories.createQueue(queueFactory), Entry.eagerlyInitialiseEntryMap(allConflationKeys, () -> null),
+                appenderListener, pollerListener);
     }
 
     /**
@@ -155,10 +162,8 @@ public class AtomicConflationQueue<K,V> implements ConflationQueue<K,V> {
                                                                                         final Class<K> conflationKeyClass,
                                                                                         final AppenderListener<? super K, ? super V> appenderListener,
                                                                                         final PollerListener<? super K, ? super V> pollerListener) {
-        return new AtomicConflationQueue<>(
-                Entry.eagerlyInitialiseEntryEnumMap(conflationKeyClass, () -> null), queueFactory,
-                appenderListener, pollerListener
-        );
+        return new AtomicConflationQueue<>(Factories.createQueue(queueFactory),
+                Entry.eagerlyInitialiseEntryEnumMap(conflationKeyClass, () -> null), appenderListener, pollerListener);
     }
 
     @Override
