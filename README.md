@@ -15,7 +15,7 @@ when conflation occurs.
 ### Gradle
 ```gradle
 dependencies {
-    compile 'org.tools4j:tools4j-nobark:1.1'
+    compile 'org.tools4j:tools4j-nobark:1.2'
 }
 ```
 
@@ -24,7 +24,7 @@ dependencies {
 <dependency>
     <groupId>org.tools4j</groupId>
     <artifactId>tools4j-nobark</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
 </dependency>
 ```
 
