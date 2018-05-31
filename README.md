@@ -11,7 +11,9 @@ the same key already resides in the queue then the two values will be "conflated
 means that the most recent value survives and replaces older values;  some more advanced implementations support merging
 when conflation occurs.
 
-[more information](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/queue/package-summary.html)
+[more information](https://github.com/tools4j/nobark/wiki/Conflation-queues)
+
+[javadoc API](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/queue/package-summary.html)
 
 ### Gradle
 ```gradle
