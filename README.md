@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/tools4j/nobark.svg?branch=master)](https://travis-ci.org/tools4j/nobark)
 [![Maven Central](https://img.shields.io/maven-central/v/org.tools4j/tools4j-nobark.svg)](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22tools4j-nobark%22)
 [![Javadocs](http://www.javadoc.io/badge/org.tools4j/tools4j-nobark.svg)](http://www.javadoc.io/doc/org.tools4j/tools4j-nobark)
 
