@@ -55,8 +55,11 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
         /**
          * Polls the queue passing an unused value in exchange to the queue.  The given consumer is invoked with
          * conflation key and polled value if the queue was non-empty and the value is returned.  If the queue was
-         * empty, null is returned.  The exchange value will at some point be returned by an enqueue operation with the
-         * same conflation key and can be reused by the producer.
+         * empty, null is returned.
+         * <p>
+         * If polling was successful, the exchange value will at some point be returned by an enqueue operation with
+         * the same conflation key and can be reused by the producer.  The caller retains ownership of the exchange
+         * value if polling failed and null was returned.
          *
          * @param consumer consumer for conflation key and polled value
          * @param  exchange a value offered in exchange for the polled value, to be returned by an enqueue operation
@@ -65,13 +68,20 @@ public interface ExchangeConflationQueue<K,V> extends ConflationQueue<K,V> {
         V poll(BiConsumer<? super K, ? super V> consumer, V exchange);
 
         /**
-         * Polls the queue passing an unused value in exchange to the queue.  The given consumer is invoked with
-         * conflation key and polled value if the queue was non-empty and the value is returned.  If the queue was
-         * empty, null is returned.
+         * Polls the queue passing an unused value in exchange to the queue.  Returns the polled value if any value was
+         * present in the queue, or null if the queue was empty.
+         * <p>
+         * If polling was successful, the exchange value will at some point be returned by an enqueue operation with
+         * the same conflation key and can be reused by the producer.  The caller retains ownership of the exchange
+         * value if polling failed and null was returned.
          *
-         * @param consumer consumer for conflation key and polled value
+         * @param  exchange a value offered in exchange for the polled value, to be returned by an enqueue operation
          * @return the polled value, or null if the queue was empty
          */
+        default V poll(final V exchange) {
+            return poll((k,v) -> {}, exchange);
+        }
+
         @Override
         default V poll(final BiConsumer<? super K, ? super V> consumer) {
             return poll(consumer, null);
