@@ -23,16 +23,50 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.junit.Test;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /**
- * While condition for a {@link Loop}.
+ * Unit test for {@link IdleStrategy}.
  */
-@FunctionalInterface
-public interface LoopCondition {
-    /**
-     * Returns true if the loop should continue, and false otherwise.
-     *
-     * @param workDone if any substantial work was performed in the last loop iteration
-     * @return true to continue and false to terminate the loop
-     */
-    boolean loopAgain(boolean workDone);
+public class IdleStrategyTest {
+
+    @Test
+    public void idleInvokesIdleAndReset() {
+        //given
+        final AtomicBoolean idleInvoked = new AtomicBoolean(false);
+        final AtomicBoolean resetInvoked = new AtomicBoolean(false);
+        final IdleStrategy idleStrategy = new IdleStrategy() {
+            @Override
+            public void idle() {
+                idleInvoked.set(true);
+            }
+
+            @Override
+            public void reset() {
+                resetInvoked.set(true);
+            }
+        };
+
+        //when
+        idleStrategy.idle(true);
+
+        //then
+        assertTrue(resetInvoked.getAndSet(false));
+        assertFalse(idleInvoked.getAndSet(false));
+
+        //when
+        idleStrategy.idle(false);
+
+        //then
+        assertFalse(resetInvoked.getAndSet(false));
+        assertTrue(idleInvoked.getAndSet(false));
+
+        //... and for the sake of 100% coverage
+        IdleStrategy.NO_OP.idle();
+    }
 }

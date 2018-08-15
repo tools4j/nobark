@@ -27,10 +27,10 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * A loop performing  a series of {@link Step steps} in an iterative manner as long as the {@link LoopCondition} is true.
+ * A loop performing a series of {@link Step steps} in an iterative manner as long as the {@link LoopCondition} is true.
  * If no step performs any work in a whole iteration, an {@link IdleStrategy} is invoked.
  */
-public class Loop implements Step {
+public class Loop implements Runnable {
 
     private final String name;
     private final LoopCondition loopCondition;
@@ -98,7 +98,7 @@ public class Loop implements Step {
     }
 
     @Override
-    public boolean perform() {
+    public void run() {
         boolean workDone;
         do {
             workDone = false;
@@ -107,7 +107,6 @@ public class Loop implements Step {
             }
             idleStrategy.idle(workDone);
         } while (loopCondition.loopAgain(workDone));
-        return workDone;
     }
 
     private static Step[] toSteps(final StepSupplier[] suppliers, final Function<StepSupplier, Step> supplierInvoker) {
@@ -128,6 +127,7 @@ public class Loop implements Step {
                 index++;
             }
         }
+        assert count == index;
         return steps;
     }
 

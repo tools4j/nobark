@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.loop;
 
+import sun.misc.Contended;
+
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -42,11 +44,12 @@ public class LoopService implements Service {
     private static final int SHUTDOWN_NOW = 2;
     private static final int TERMINATED = 4;
 
-    private final Step mainLoop;
-    private final Step shutdownLoop;
+    private final Runnable mainLoop;
+    private final Runnable shutdownLoop;
     private final LongSupplier nanoClock;
-    private final AtomicInteger state = new AtomicInteger(RUNNING);
     private final Thread thread;
+    @Contended
+    private final AtomicInteger state = new AtomicInteger(RUNNING);
 
     /**
      * Constructor with idle strategy, exception handler for exceptions thrown by steps, thread factory, and the
@@ -88,8 +91,8 @@ public class LoopService implements Service {
     }
 
     private void run() {
-        mainLoop.perform();
-        shutdownLoop.perform();
+        mainLoop.run();
+        shutdownLoop.run();
         notifyTerminated();
     }
 
@@ -137,15 +140,16 @@ public class LoopService implements Service {
             return true;
         }
         if (timeout > 0) {
-            long wait = unit.toNanos(timeout);
+            final long timeoutNanos = unit.toNanos(timeout);
             final long start = nanoClock.getAsLong();
+            long wait = timeoutNanos;
             do {
                 final long sleep = Math.min(100, wait);
                 LockSupport.parkNanos(sleep);
                 if (isTerminated()) {
                     return true;
                 }
-                wait = nanoClock.getAsLong() - start;
+                wait = timeoutNanos - (nanoClock.getAsLong() - start);
             } while (wait > 0);
         }
         return false;
