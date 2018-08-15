@@ -265,7 +265,7 @@ public class LoopTest {
 
     @Test(expected = NullPointerException.class)
     public void constructorThrowsNpe_nullSteps() {
-        new Loop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, null);
+        new Loop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (Step[])null);
     }
 
     @Test
@@ -275,7 +275,7 @@ public class LoopTest {
 
     @Test(expected = NullPointerException.class)
     public void mainLoopThrowsNpe_nullSuppliers() {
-        Loop.mainLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, null);
+        Loop.mainLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepSupplier[])null);
     }
 
     @Test
@@ -285,7 +285,7 @@ public class LoopTest {
 
     @Test(expected = NullPointerException.class)
     public void shutdownLoopThrowsNpe_nullSuppliers() {
-        Loop.shutdownLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, null);
+        Loop.shutdownLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepSupplier[])null);
     }
 
     @Test

@@ -28,7 +28,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -306,7 +305,7 @@ public class LoopServiceTest {
 
     @Test(expected = NullPointerException.class)
     public void constructorThrowsNpe_nullStepSuppliers() {
-        new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, null);
+        new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, (StepSupplier[])null);
     }
 
     @Test
