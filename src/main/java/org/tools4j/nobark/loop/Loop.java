@@ -60,41 +60,41 @@ public class Loop implements Runnable {
     }
 
     /**
-     * Static factory method creating a loop with {@link StepSupplier#normalStep(StepSupplier) normal} steps using the
+     * Static factory method creating a loop with {@link StepProvider#normalStep(StepProvider) normal} steps using the
      * given suppliers to provide the steps.
      *
      * @param name              the loop name returned by {@link #toString()}
      * @param loopCondition     the condition defining when the loop terminates
      * @param idleStrategy      the idle strategy defining how to handle situations without work to do
      * @param exceptionHandler  the handler for step exceptions
-     * @param stepSuppliers     the suppliers providing the steps for the loop
+     * @param stepProviders     the providers for the steps executed during the loop
      * @return new loop with steps to execute in the normal phase of a process
      */
     public static Loop mainLoop(final String name,
                                 final LoopCondition loopCondition,
                                 final IdleStrategy idleStrategy,
                                 final ExceptionHandler exceptionHandler,
-                                final StepSupplier... stepSuppliers) {
-        return new Loop(name, loopCondition, idleStrategy, exceptionHandler, toSteps(stepSuppliers, StepSupplier::normalStep));
+                                final StepProvider... stepProviders) {
+        return new Loop(name, loopCondition, idleStrategy, exceptionHandler, toSteps(stepProviders, StepProvider::normalStep));
     }
 
     /**
-     * Static factory method creating a loop with {@link StepSupplier#shutdownStep(StepSupplier) shutdown} steps using
+     * Static factory method creating a loop with {@link StepProvider#shutdownStep(StepProvider) shutdown} steps using
      * the given suppliers to provide the steps.
      *
      * @param name              the loop name returned by {@link #toString()}
      * @param loopCondition     the condition defining when the loop terminates
      * @param idleStrategy      the idle strategy defining how to handle situations without work to do
      * @param exceptionHandler  the handler for step exceptions
-     * @param stepSuppliers     the suppliers providing the steps for the loop
+     * @param stepProviders     the providers for the steps executed during the loop
      * @return new loop with steps to execute in the shutdown phase of a process
      */
     public static Loop shutdownLoop(final String name,
                                     final LoopCondition loopCondition,
                                     final IdleStrategy idleStrategy,
                                     final ExceptionHandler exceptionHandler,
-                                    final StepSupplier... stepSuppliers) {
-        return new Loop(name, loopCondition, idleStrategy, exceptionHandler, toSteps(stepSuppliers, StepSupplier::shutdownStep));
+                                    final StepProvider... stepProviders) {
+        return new Loop(name, loopCondition, idleStrategy, exceptionHandler, toSteps(stepProviders, StepProvider::shutdownStep));
     }
 
     @Override
@@ -109,19 +109,19 @@ public class Loop implements Runnable {
         } while (loopCondition.loopAgain(workDone));
     }
 
-    private static Step[] toSteps(final StepSupplier[] suppliers, final Function<StepSupplier, Step> supplierInvoker) {
+    private static Step[] toSteps(final StepProvider[] providers, final Function<StepProvider, Step> providerInvoker) {
         //count first to avoid garbage
         int count = 0;
-        for (final StepSupplier factory : suppliers) {
-            if (supplierInvoker.apply(factory) != Step.NO_OP) {
+        for (final StepProvider provider : providers) {
+            if (providerInvoker.apply(provider) != Step.NO_OP) {
                 count++;
             }
         }
-        //now create the array
+        //now provide the array
         final Step[] steps = new Step[count];
         int index = 0;
-        for (final StepSupplier factory : suppliers) {
-            final Step step = supplierInvoker.apply(factory);
+        for (final StepProvider provider : providers) {
+            final Step step = providerInvoker.apply(provider);
             if (step != Step.NO_OP) {
                 steps[index] = step;
                 index++;

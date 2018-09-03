@@ -26,18 +26,18 @@ package org.tools4j.nobark.loop;
 import java.util.Objects;
 
 /**
- * Supplier for {@link Step} distinguishing between normal (main loop) steps and shutdown steps that are used during the
- * termination phase of a {@link Service}.
+ * Provider for {@link Step} distinguishing between normal (main loop) steps and shutdown steps that are used during the
+ * termination phase of a {@link LoopRunner}.
  */
 @FunctionalInterface
-public interface StepSupplier {
+public interface StepProvider {
     /**
      * Returns a step for normal or shutdown use.
      *
      * @param forShutdown true if the returned step will be used in the shutdown phase, and false otherwise
      * @return the step, never null
      */
-    Step create(boolean forShutdown);
+    Step provide(boolean forShutdown);
 
     /**
      * Returns a normal step using the given supplier.
@@ -45,8 +45,8 @@ public interface StepSupplier {
      * @param supplier the supplier that provides the step
      * @return a step for use during the normal phase
      */
-    static Step normalStep(final StepSupplier supplier) {
-        return supplier.create(false);
+    static Step normalStep(final StepProvider supplier) {
+        return supplier.provide(false);
     }
 
     /**
@@ -55,30 +55,30 @@ public interface StepSupplier {
      * @param supplier the supplier that provides the step
      * @return a step for use during the shutdown phase
      */
-    static Step shutdownStep(final StepSupplier supplier) {
-        return supplier.create(true);
+    static Step shutdownStep(final StepProvider supplier) {
+        return supplier.provide(true);
     }
 
 
     /**
-     * Returns a supplier for the given step used for both normal and shutdown phase.
+     * Returns a provider for the given step used for both normal and shutdown phase.
      *
-     * @param step the step to be returned by the supplier
-     * @return a supplier that always returns the given step
+     * @param step the step to be returned by the provider
+     * @return a provider that always returns the given step
      */
-    static StepSupplier requiredDuringShutdown(final Step step) {
+    static StepProvider alwaysProvide(final Step step) {
         Objects.requireNonNull(step);
         return forShutdown -> step;
     }
 
     /**
-     * Returns a supplier for the given step used for the normal phase, and a {@link Step#NO_OP no-OP} for the shutdown
-     * phase.
+     * Returns a provider for the given step used only for the normal phase;  a {@link Step#NO_OP no-OP} is returned for
+     * the shutdown phase.
      *
-     * @param step the step to be returned by the supplier for the normal phase
-     * @return a supplier that returns the given step for normal phase and a no-OP for the shutdown phase
+     * @param step the step to be returned by the provider for the normal phase
+     * @return a provider that returns the given step for normal phase and a no-OP for the shutdown phase
      */
-    static StepSupplier idleDuringShutdown(final Step step) {
+    static StepProvider silenceDuringShutdown(final Step step) {
         Objects.requireNonNull(step);
         return forShutdown -> forShutdown ? Step.NO_OP : step;
     }

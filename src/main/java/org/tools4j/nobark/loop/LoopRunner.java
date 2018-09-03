@@ -23,8 +23,6 @@
  */
 package org.tools4j.nobark.loop;
 
-import sun.misc.Contended;
-
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -32,12 +30,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.LongSupplier;
 
+import sun.misc.Contended;
+
 /**
- * Service that performs a main {@link Loop} in a new thread and another shutdown loop during the graceful
- * {@link #shutdown} phase of the service.  The service is started immediately upon construction.
+ * A runner that performs a main {@link Loop} in a new thread and another shutdown loop during the graceful
+ * {@link #shutdown} phase of the runner.  The runner thread is started immediately upon construction.
  */
-@SuppressWarnings("unused")
-public class LoopService implements Service {
+public class LoopRunner implements Shutdownable {
 
     private static final int RUNNING = 0;
     private static final int SHUTDOWN = 1;
@@ -52,42 +51,59 @@ public class LoopService implements Service {
     private final AtomicInteger state = new AtomicInteger(RUNNING);
 
     /**
-     * Constructor with idle strategy, exception handler for exceptions thrown by steps, thread factory, and the
-     * factories for the loop steps.
+     * Constructor for loop runner; it is recommended to use the static start(..) methods instead.
      *
      * @param idleStrategy      the strategy handling idle main loop phases
      * @param exceptionHandler  the step exception handler
-     * @param threadFactory     the factory to create the service thread
-     * @param stepFactories     the factories used to create the loop steps
+     * @param threadFactory     the factory to provide the service thread
+     * @param nanoClock         the nano-time clock used in {@link #awaitTermination(long, TimeUnit) awaitTermination(..)}
+     * @param stepProviders     the providers for the steps executed during the loop
      */
-    public LoopService(final IdleStrategy idleStrategy,
-                       final ExceptionHandler exceptionHandler,
-                       final ThreadFactory threadFactory,
-                       final StepSupplier... stepFactories) {
-        this(idleStrategy, exceptionHandler, threadFactory, System::nanoTime, stepFactories);
+    protected LoopRunner(final IdleStrategy idleStrategy,
+                         final ExceptionHandler exceptionHandler,
+                         final ThreadFactory threadFactory,
+                         final LongSupplier nanoClock,
+                         final StepProvider... stepProviders) {
+        this.thread = threadFactory.newThread(this::run);
+        this.nanoClock = Objects.requireNonNull(nanoClock);
+        this.mainLoop = Loop.mainLoop(thread.getName(), this::isRunning, idleStrategy, exceptionHandler, stepProviders);
+        this.shutdownLoop = Loop.shutdownLoop(thread.getName() + "-shutdown", this::isShutdownRunning,
+                IdleStrategy.NO_OP, exceptionHandler, stepProviders);
+        thread.start();
     }
 
     /**
-     * Constructor with idle strategy, exception handler for exceptions thrown by steps, thread factory, nano-time clock
-     * and the factories for the loop steps.
+     * Creates, starts and returns a new loop runner.
      *
      * @param idleStrategy      the strategy handling idle main loop phases
      * @param exceptionHandler  the step exception handler
-     * @param threadFactory     the factory to create the service thread
-     * @param nanoClock         the nano-time clock used in {@link #awaitTermination(long, TimeUnit) awaitTermination(..)}
-     * @param stepFactories     the factories used to create the loop steps
+     * @param threadFactory     the factory to provide the service thread
+     * @param stepProviders     the providers for the steps executed during the loop
+     * @return the newly created and started loop runner
      */
-    public LoopService(final IdleStrategy idleStrategy,
-                       final ExceptionHandler exceptionHandler,
-                       final ThreadFactory threadFactory,
-                       final LongSupplier nanoClock,
-                       final StepSupplier... stepFactories) {
-        this.thread = threadFactory.newThread(this::run);
-        this.nanoClock = Objects.requireNonNull(nanoClock);
-        this.mainLoop = Loop.mainLoop(thread.getName(), this::isRunning, idleStrategy, exceptionHandler, stepFactories);
-        this.shutdownLoop = Loop.shutdownLoop(thread.getName() + "-shutdown", this::isShutdownRunning,
-                IdleStrategy.NO_OP, exceptionHandler, stepFactories);
-        thread.start();
+    public static LoopRunner start(final IdleStrategy idleStrategy,
+                                   final ExceptionHandler exceptionHandler,
+                                   final ThreadFactory threadFactory,
+                                   final StepProvider... stepProviders) {
+        return start(idleStrategy, exceptionHandler, threadFactory, System::nanoTime, stepProviders);
+    }
+
+    /**
+     * Creates, starts and returns a new loop runner.
+     *
+     * @param idleStrategy      the strategy handling idle main loop phases
+     * @param exceptionHandler  the step exception handler
+     * @param threadFactory     the factory to provide the service thread
+     * @param nanoClock         the nano-time clock used in {@link #awaitTermination(long, TimeUnit) awaitTermination(..)}
+     * @param stepProviders     the providers for the steps executed during the loop
+     * @return the newly created and started loop runner
+     */
+    public static LoopRunner start(final IdleStrategy idleStrategy,
+                                   final ExceptionHandler exceptionHandler,
+                                   final ThreadFactory threadFactory,
+                                   final LongSupplier nanoClock,
+                                   final StepProvider... stepProviders) {
+        return new LoopRunner(idleStrategy, exceptionHandler, threadFactory, nanoClock, stepProviders);
     }
 
     private void run() {

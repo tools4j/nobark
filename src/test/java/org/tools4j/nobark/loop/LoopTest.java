@@ -197,10 +197,10 @@ public class LoopTest {
         };
         final Loop loop = Loop.mainLoop(
                 "mainTestLoop", workDone -> loopCounter.get() < 2, IdleStrategy.NO_OP, NULL_HANDLER,
-                StepSupplier.requiredDuringShutdown(step[0]),
-                StepSupplier.idleDuringShutdown(step[1]),
-                StepSupplier.idleDuringShutdown(step[2]),
-                StepSupplier.requiredDuringShutdown(step[3])
+                StepProvider.alwaysProvide(step[0]),
+                StepProvider.silenceDuringShutdown(step[1]),
+                StepProvider.silenceDuringShutdown(step[2]),
+                StepProvider.alwaysProvide(step[3])
         );
 
         //when
@@ -228,10 +228,10 @@ public class LoopTest {
         };
         final Loop loop = Loop.shutdownLoop(
                 "shutdownLoop", workDone -> loopCounter.get() < 2, IdleStrategy.NO_OP, NULL_HANDLER,
-                StepSupplier.requiredDuringShutdown(step[0]),
-                StepSupplier.idleDuringShutdown(step[1]),
-                StepSupplier.idleDuringShutdown(step[2]),
-                StepSupplier.requiredDuringShutdown(step[3])
+                StepProvider.alwaysProvide(step[0]),
+                StepProvider.silenceDuringShutdown(step[1]),
+                StepProvider.silenceDuringShutdown(step[2]),
+                StepProvider.alwaysProvide(step[3])
         );
 
         //when
@@ -275,7 +275,7 @@ public class LoopTest {
 
     @Test(expected = NullPointerException.class)
     public void mainLoopThrowsNpe_nullSuppliers() {
-        Loop.mainLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepSupplier[])null);
+        Loop.mainLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepProvider[])null);
     }
 
     @Test
@@ -285,7 +285,7 @@ public class LoopTest {
 
     @Test(expected = NullPointerException.class)
     public void shutdownLoopThrowsNpe_nullSuppliers() {
-        Loop.shutdownLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepSupplier[])null);
+        Loop.shutdownLoop("bla", workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepProvider[])null);
     }
 
     @Test

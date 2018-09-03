@@ -27,9 +27,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Service that can be shut down orderly or abruptly in a similar to {@link ExecutorService}.
+ * Shutdownable is a running service such as a thread that can be shutdown orderly or abruptly in a way similar to
+ * {@link ExecutorService}.
  */
-public interface Service {
+public interface Shutdownable {
     /**
      * Initiates an orderly shutdown in which the service will be continue to perform its duties
      * as long as there is work to be done.  For instance for a sequence of steps, the service could

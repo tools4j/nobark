@@ -23,16 +23,18 @@
  */
 package org.tools4j.nobark.loop;
 
-import org.junit.Test;
-
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 
 /**
- * Unit test for {@link StepSupplier}.
+ * Unit test for {@link StepProvider}.
  */
-public class StepSupplierTest {
+public class StepProviderTest {
 
     @Test
     public void normalStep() {
@@ -40,7 +42,7 @@ public class StepSupplierTest {
         final AtomicReference<Boolean> resultIsShutdown = new AtomicReference<>();
 
         //when
-        StepSupplier.normalStep(isShutdown -> {
+        StepProvider.normalStep(isShutdown -> {
             resultIsShutdown.set(isShutdown);
             return Step.NO_OP;
         });
@@ -56,7 +58,7 @@ public class StepSupplierTest {
         final AtomicReference<Boolean> resultIsShutdown = new AtomicReference<>();
 
         //when
-        StepSupplier.shutdownStep(isShutdown -> {
+        StepProvider.shutdownStep(isShutdown -> {
             resultIsShutdown.set(isShutdown);
             return Step.NO_OP;
         });
@@ -67,35 +69,35 @@ public class StepSupplierTest {
     }
 
     @Test
-    public void requiredDuringShutdown() {
+    public void alwaysProvide() {
         //given
         final Step step = Boolean.TRUE::booleanValue;
-        final StepSupplier supplier = StepSupplier.requiredDuringShutdown(step);
+        final StepProvider stepProvider = StepProvider.alwaysProvide(step);
 
         //when + then
-        assertSame(step, supplier.create(false));
-        assertSame(step, supplier.create(true));
+        assertSame(step, stepProvider.provide(false));
+        assertSame(step, stepProvider.provide(true));
     }
 
     @Test
-    public void idleDuringShutdown() {
+    public void silenceDuringShutdown() {
         //given
         final Step step = Boolean.TRUE::booleanValue;
-        final StepSupplier supplier = StepSupplier.idleDuringShutdown(step);
+        final StepProvider stepProvider = StepProvider.silenceDuringShutdown(step);
 
         //when + then
-        assertSame(step, supplier.create(false));
-        assertSame(Step.NO_OP, supplier.create(true));
+        assertSame(step, stepProvider.provide(false));
+        assertSame(Step.NO_OP, stepProvider.provide(true));
     }
 
 
     @Test(expected = NullPointerException.class)
-    public void requiredDuringShutdown_nullStepNotAllowed() {
-        StepSupplier.requiredDuringShutdown(null);
+    public void alwaysProvide_nullStepNotAllowed() {
+        StepProvider.alwaysProvide(null);
     }
 
     @Test(expected = NullPointerException.class)
-    public void idleDuringShutdown_nullStepNotAllowed() {
-        StepSupplier.idleDuringShutdown(null);
+    public void silenceDuringShutdown_nullStepNotAllowed() {
+        StepProvider.silenceDuringShutdown(null);
     }
 }

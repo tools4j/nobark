@@ -23,8 +23,6 @@
  */
 package org.tools4j.nobark.loop;
 
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
@@ -36,102 +34,106 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
- * Unit test for {@link LoopService}.
+ * Unit test for {@link LoopRunner}.
  */
-public class LoopServiceTest {
+public class LoopRunnerTest {
 
     private static final ExceptionHandler NULL_HANDLER = (loop, step, throwable) -> {};
 
     @Test
     public void shutdown() {
         //given
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, forShutdown -> Step.NO_OP);
-        assertFalse(loopService.isShutdown());
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, forShutdown -> Step.NO_OP);
+        assertFalse(runner.isShutdown());
 
         //when
-        loopService.shutdown();
+        runner.shutdown();
 
         //then
-        assertTrue(loopService.isShutdown());
+        assertTrue(runner.isShutdown());
 
         //when
-        loopService.shutdown();
-        loopService.shutdown();
+        runner.shutdown();
+        runner.shutdown();
 
         //then
-        assertTrue(loopService.isShutdown());
+        assertTrue(runner.isShutdown());
     }
 
     @Test
     public void shutdownNow() {
         //given
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new,
-                StepSupplier.requiredDuringShutdown(() -> true)
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new,
+                StepProvider.alwaysProvide(() -> true)
         );
 
         //then
-        assertFalse(loopService.isTerminated());
+        assertFalse(runner.isTerminated());
 
         //when
-        loopService.shutdownNow();
+        runner.shutdownNow();
 
         //then
-        assertTrue(loopService.isShutdown());
+        assertTrue(runner.isShutdown());
 
         //when
-        loopService.awaitTermination(5, TimeUnit.SECONDS);
+        runner.awaitTermination(5, TimeUnit.SECONDS);
 
         //then
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isTerminated());
 
         //when
-        loopService.shutdownNow();
+        runner.shutdownNow();
 
         //then
-        assertTrue(loopService.isShutdown());
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isShutdown());
+        assertTrue(runner.isTerminated());
     }
 
     @Test
     public void shutdownNowAfterShutdown() {
         //given
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new,
-                StepSupplier.requiredDuringShutdown(() -> true)
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new,
+                StepProvider.alwaysProvide(() -> true)
         );
 
         //when
-        loopService.shutdown();
+        runner.shutdown();
 
         //then
-        assertTrue(loopService.isShutdown());
+        assertTrue(runner.isShutdown());
 
         //when
-        loopService.awaitTermination(300, TimeUnit.MILLISECONDS);
+        runner.awaitTermination(300, TimeUnit.MILLISECONDS);
 
         //then
-        assertFalse(loopService.isTerminated());
+        assertFalse(runner.isTerminated());
 
         //when
-        loopService.shutdownNow();
+        runner.shutdownNow();
 
         //then
-        assertTrue(loopService.isShutdown());
+        assertTrue(runner.isShutdown());
 
         //when
-        loopService.awaitTermination(5, TimeUnit.SECONDS);
+        runner.awaitTermination(5, TimeUnit.SECONDS);
 
         //then
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isTerminated());
 
         //when
-        loopService.shutdownNow();
+        runner.shutdownNow();
 
         //then
-        assertTrue(loopService.isShutdown());
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isShutdown());
+        assertTrue(runner.isTerminated());
     }
 
     @Test
@@ -142,45 +144,45 @@ public class LoopServiceTest {
         final int increment = 100;
         final AtomicLong nanoTime = new AtomicLong(startTime);
         final LongSupplier nanoClock = () -> nanoTime.getAndAdd(increment);
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, nanoClock,
-                StepSupplier.requiredDuringShutdown(() -> !terminate.get())
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, nanoClock,
+                StepProvider.alwaysProvide(() -> !terminate.get())
         );
         boolean terminated;
 
         //when
-        loopService.shutdown();
+        runner.shutdown();
 
         //when
-        terminated = loopService.awaitTermination(0, TimeUnit.SECONDS);
+        terminated = runner.awaitTermination(0, TimeUnit.SECONDS);
 
         //then
         assertFalse(terminated);
-        assertFalse(loopService.isTerminated());
+        assertFalse(runner.isTerminated());
         assertEquals(startTime, nanoTime.get());
 
         //when
-        loopService.awaitTermination(500, TimeUnit.NANOSECONDS);
+        runner.awaitTermination(500, TimeUnit.NANOSECONDS);
 
         //then
         assertFalse(terminated);
-        assertFalse(loopService.isTerminated());
+        assertFalse(runner.isTerminated());
         assertEquals(startTime + increment + (500/100)*increment, nanoTime.get());
 
         //when
-        loopService.awaitTermination(30, TimeUnit.MICROSECONDS);
+        runner.awaitTermination(30, TimeUnit.MICROSECONDS);
 
         //then
         assertFalse(terminated);
-        assertFalse(loopService.isTerminated());
+        assertFalse(runner.isTerminated());
         assertEquals(startTime + increment + (500/100)*increment + increment + (30000/100)*increment, nanoTime.get());
 
         //when
         terminate.set(true);
-        terminated = loopService.awaitTermination(300, TimeUnit.MILLISECONDS);
+        terminated = runner.awaitTermination(300, TimeUnit.MILLISECONDS);
 
         //then
         assertTrue(terminated);
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isTerminated());
     }
 
     @Test
@@ -195,27 +197,27 @@ public class LoopServiceTest {
         final AtomicBoolean terminate = new AtomicBoolean(false);
 
         //when
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, threadFactory,
-                StepSupplier.requiredDuringShutdown(() -> !terminate.get())
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, threadFactory,
+                StepProvider.alwaysProvide(() -> !terminate.get())
         );
 
         //then
-        assertEquals(threadName, loopService.toString());
+        assertEquals(threadName, runner.toString());
 
         //when
-        loopService.shutdown();
+        runner.shutdown();
 
         //then
-        assertFalse(loopService.awaitTermination(100, TimeUnit.MILLISECONDS));
+        assertFalse(runner.awaitTermination(100, TimeUnit.MILLISECONDS));
 
         //when
         terminate.set(true);
         thread.join(TimeUnit.SECONDS.toMillis(5));
 
         //then
-        assertTrue(loopService.awaitTermination(5, TimeUnit.SECONDS));
-        assertTrue(loopService.isTerminated());
-        assertEquals(threadName, loopService.toString());
+        assertTrue(runner.awaitTermination(5, TimeUnit.SECONDS));
+        assertTrue(runner.isTerminated());
+        assertEquals(threadName, runner.toString());
     }
 
     @Test
@@ -228,21 +230,21 @@ public class LoopServiceTest {
         final ExceptionHandler exceptionHandler = (loop, step, throwable) -> actions.add(throwable);
         final AtomicLong iterationCounter = new AtomicLong();
         final AtomicLong shutdownCounter = new AtomicLong();
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, exceptionHandler, Thread::new,
-                StepSupplier.idleDuringShutdown(() -> actions.add("step 1")),
-                StepSupplier.requiredDuringShutdown(() -> {throw step2Exception;}),
-                StepSupplier.idleDuringShutdown(() -> actions.add("step 3")),
-                StepSupplier.idleDuringShutdown(() -> iterationCounter.incrementAndGet() == 0),
-                StepSupplier.requiredDuringShutdown(() -> shutdownCounter.incrementAndGet() - iterationCounter.get() < shutdownRounds)
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, exceptionHandler, Thread::new,
+                StepProvider.silenceDuringShutdown(() -> actions.add("step 1")),
+                StepProvider.alwaysProvide(() -> {throw step2Exception;}),
+                StepProvider.silenceDuringShutdown(() -> actions.add("step 3")),
+                StepProvider.silenceDuringShutdown(() -> iterationCounter.incrementAndGet() == 0),
+                StepProvider.alwaysProvide(() -> shutdownCounter.incrementAndGet() - iterationCounter.get() < shutdownRounds)
         );
 
         //when
         while(iterationCounter.get() < minIterationRounds);
-        loopService.shutdown();
-        loopService.awaitTermination(5, TimeUnit.SECONDS);
+        runner.shutdown();
+        runner.awaitTermination(5, TimeUnit.SECONDS);
 
         //then
-        assertTrue(loopService.isTerminated());
+        assertTrue(runner.isTerminated());
         assertEquals(3 * iterationCounter.get() + shutdownRounds, actions.size());
         assertEquals("step 1", actions.get(0));
         assertEquals(step2Exception, actions.get(1));
@@ -260,7 +262,7 @@ public class LoopServiceTest {
         final ThreadFactory threadFactory = r -> new Thread(null, r, threadName);
         final Deque<String> loopNames = new ConcurrentLinkedDeque<>();
         final ExceptionHandler exceptionHandler = (loop, step, throwable) -> loopNames.offer(loop.toString());
-        final LoopService loopService = new LoopService(IdleStrategy.NO_OP, exceptionHandler, threadFactory,
+        final LoopRunner runner = LoopRunner.start(IdleStrategy.NO_OP, exceptionHandler, threadFactory,
                 isShutdown -> {
                     if (isShutdown) {
                         return () -> {
@@ -279,8 +281,8 @@ public class LoopServiceTest {
 
         //when
         while(loopNames.isEmpty());
-        loopService.shutdown();
-        loopService.awaitTermination(5, TimeUnit.SECONDS);
+        runner.shutdown();
+        runner.awaitTermination(5, TimeUnit.SECONDS);
 
         //then
         assertEquals(2, loopNames.size());
@@ -289,28 +291,28 @@ public class LoopServiceTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void constructorThrowsNpe_nullIdleStrategy() {
-        new LoopService(null, NULL_HANDLER, Thread::new, forShutdown -> Step.NO_OP);
+    public void startThrowsNpe_nullIdleStrategy() {
+        LoopRunner.start(null, NULL_HANDLER, Thread::new, forShutdown -> Step.NO_OP);
     }
 
     @Test(expected = NullPointerException.class)
-    public void constructorThrowsNpe_nullExceptionHandler() {
-        new LoopService(IdleStrategy.NO_OP, null, Thread::new, forShutdown -> Step.NO_OP);
+    public void startThrowsNpe_nullExceptionHandler() {
+        LoopRunner.start(IdleStrategy.NO_OP, null, Thread::new, forShutdown -> Step.NO_OP);
     }
 
     @Test(expected = NullPointerException.class)
-    public void constructorThrowsNpe_nullThreadFactory() {
-        new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, null, forShutdown -> Step.NO_OP);
+    public void startThrowsNpe_nullThreadFactory() {
+        LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, null, forShutdown -> Step.NO_OP);
     }
 
     @Test(expected = NullPointerException.class)
-    public void constructorThrowsNpe_nullStepSuppliers() {
-        new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, (StepSupplier[])null);
+    public void startThrowsNpe_nullStepSuppliers() {
+        LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, (StepProvider[])null);
     }
 
     @Test
-    public void constructor_allowEmptySteps() {
-        new LoopService(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new);
+    public void start_allowEmptySteps() {
+        LoopRunner.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new);
     }
 
 }
