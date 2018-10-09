@@ -36,7 +36,7 @@ public interface Step {
     boolean perform();
 
     /**
-     * Step performing a no-OP; implementation returns false indicating that no work was performed.
+     * Step performing a no-OP; the implementation returns false indicating that no work was performed.
      */
     Step NO_OP = () -> false;
 }
