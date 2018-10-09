@@ -23,13 +23,15 @@
  */
 package org.tools4j.nobark.loop;
 
-import org.junit.Test;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.Test;
+
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 /**
  * Unit test for {@link ExceptionHandler}.
@@ -54,7 +56,7 @@ public class ExceptionHandlerTest {
     public void performQuietlyThrowsInvokesHadlerWithNpeWhenStepIsNull() {
         final AtomicReference<Throwable> handlerException = new AtomicReference<>();
         final ExceptionHandler exceptionHandler = (loop, step1, throwable) -> handlerException.set(throwable);
-        final Loop loop = new Loop("testLoop", workDone -> false, IdleStrategy.NO_OP, exceptionHandler);
+        final Loop loop = new Loop(workDone -> false, IdleStrategy.NO_OP, exceptionHandler);
 
         //when
         exceptionHandler.performQuietly(loop, null);

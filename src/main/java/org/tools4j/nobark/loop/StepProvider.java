@@ -24,10 +24,12 @@
 package org.tools4j.nobark.loop;
 
 import java.util.Objects;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Provider for {@link Step} distinguishing between normal (main loop) steps and shutdown steps that are used during the
- * termination phase of a {@link LoopRunner}.
+ * termination phase of a {@link ShutdownableThread} as returned by
+ * {@link Loop#start(IdleStrategy, ExceptionHandler, ThreadFactory, StepProvider...) Loop#start(..)}.
  */
 @FunctionalInterface
 public interface StepProvider {
