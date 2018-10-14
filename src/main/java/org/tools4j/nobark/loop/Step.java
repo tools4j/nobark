@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.loop;
 
+import java.util.Objects;
+
 /**
  * Step is similar to {@link Runnable} but returns true if substantial work has been performed.  Steps can for instance
  * be used as building blocks in a {@link Loop}.
@@ -34,6 +36,24 @@ public interface Step {
      * @return true if work was performed
      */
     boolean perform();
+
+    /**
+     * Returns a step that runs all given component steps;  the {@link #perform()} method of the resulting composite
+     * step returns true if any of the component steps returns true.
+     *
+     * @param components the component steps forming the parts of the returned step
+     * @return a new step that performs all component steps
+     */
+    static Step composite(final Step... components) {
+        Objects.requireNonNull(components);
+        return () -> {
+            boolean any = false;
+            for (final Step component : components) {
+                any |= component.perform();
+            }
+            return any;
+        };
+    }
 
     /**
      * Step performing a no-OP; the implementation returns false indicating that no work was performed.
