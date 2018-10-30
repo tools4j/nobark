@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.loop;
 
+import sun.misc.Contended;
+
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -31,8 +33,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
-
-import sun.misc.Contended;
 
 /**
  * A thread that performs a main {@link java.lang.Runnable runnable} in a new thread and another shutdown runnable the
@@ -45,8 +45,8 @@ public class ShutdownableThread implements Shutdownable {
     private static final int SHUTDOWN_NOW = 2;
     private static final int TERMINATED = 4;
 
-    private final Runnable mainRunnable;
-    private final Runnable shutdownRunnable;
+    private final Function<BooleanSupplier, Runnable> mainRunnableFactory;
+    private final Function<BooleanSupplier, Runnable> shutdownRunnableFactory;
     private final LongSupplier nanoClock;
     private final Thread thread;
     @Contended
@@ -66,27 +66,11 @@ public class ShutdownableThread implements Shutdownable {
                                  final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
                                  final ThreadFactory threadFactory,
                                  final LongSupplier nanoClock) {
+        this.mainRunnableFactory = Objects.requireNonNull(mainRunnableFactory);
+        this.shutdownRunnableFactory = Objects.requireNonNull(shutdownRunnableFactory);
         this.thread = threadFactory.newThread(this::run);
         this.nanoClock = Objects.requireNonNull(nanoClock);
-        this.mainRunnable = mainRunnableFactory.apply(this::isRunning);
-        this.shutdownRunnable = shutdownRunnableFactory.apply(this::isShutdownRunning);
         thread.start();
-    }
-
-    /**
-     * Creates, starts and returns a new shutdownable thread.
-     *
-     * @param mainRunnable      the main runnable;
-     * @param shutdownRunnable  the runnable for the shutdown phase;
-     * @param threadFactory     the factory to provide the thread
-     * @return the newly created and started shutdownable thread
-     */
-    public static ShutdownableThread start(final Runnable mainRunnable,
-                                           final Runnable shutdownRunnable,
-                                           final ThreadFactory threadFactory) {
-        Objects.requireNonNull(mainRunnable);
-        Objects.requireNonNull(shutdownRunnable);
-        return start(run -> mainRunnable, shuttingDown -> shutdownRunnable, threadFactory, System::nanoTime);
     }
 
     /**
@@ -124,8 +108,10 @@ public class ShutdownableThread implements Shutdownable {
     }
 
     private void run() {
-        mainRunnable.run();
-        shutdownRunnable.run();
+        final Runnable main = mainRunnableFactory.apply(this::isRunning);
+        final Runnable shutdown = shutdownRunnableFactory.apply(this::isShutdownRunning);
+        main.run();
+        shutdown.run();
         notifyTerminated();
     }
 

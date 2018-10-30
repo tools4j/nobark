@@ -93,6 +93,27 @@ public class Loop implements Runnable {
     }
 
     /**
+     * Creates, starts and returns a new thread running a loop with the given steps.
+     *
+     * @param idleStrategy      the strategy handling idle loop phases
+     * @param exceptionHandler  the step exception handler
+     * @param threadFactory     the factory to provide the service thread
+     * @param steps             the steps executed during the loop
+     * @return the newly created and started thread running the loop
+     */
+    public static StoppableThread start(final IdleStrategy idleStrategy,
+                                        final ExceptionHandler exceptionHandler,
+                                        final ThreadFactory threadFactory,
+                                        final Step... steps) {
+        Objects.requireNonNull(idleStrategy);
+        Objects.requireNonNull(exceptionHandler);
+        Objects.requireNonNull(steps);
+        return StoppableThread.start(
+                running -> new Loop(workDone -> running.getAsBoolean(), idleStrategy, exceptionHandler, steps),
+                threadFactory);
+    }
+
+    /**
      * Creates, starts and returns a new thread running first a main loop and then another shutdown loop during the
      * graceful {@link ShutdownableThread#shutdown shutdown} phase.  The loops are created with steps constructed with
      * the given providers using {@link StepProvider#normalStep(StepProvider) normal} steps for the main loop and
@@ -102,7 +123,7 @@ public class Loop implements Runnable {
      * @param exceptionHandler  the step exception handler
      * @param threadFactory     the factory to provide the service thread
      * @param stepProviders     the providers for the steps executed during the loop
-     * @return the newly created and started loop runner
+     * @return the newly created and started thread running the loop
      */
     public static ShutdownableThread start(final IdleStrategy idleStrategy,
                                            final ExceptionHandler exceptionHandler,
@@ -122,19 +143,21 @@ public class Loop implements Runnable {
      * @param threadFactory     the factory to provide the service thread
      * @param nanoClock         the nano-time clock used in {@link ShutdownableThread#awaitTermination(long, TimeUnit) awaitTermination(..)}
      * @param stepProviders     the providers for the steps executed during the loop
-     * @return the newly created and started loop runner
+     * @return the newly created and started thread running the loop
      */
     public static ShutdownableThread start(final IdleStrategy idleStrategy,
                                            final ExceptionHandler exceptionHandler,
                                            final ThreadFactory threadFactory,
                                            final LongSupplier nanoClock,
                                            final StepProvider... stepProviders) {
+        Objects.requireNonNull(idleStrategy);
+        Objects.requireNonNull(exceptionHandler);
+        Objects.requireNonNull(stepProviders);
         return ShutdownableThread.start(
                 runMain -> mainLoop(workDone -> runMain.getAsBoolean(), idleStrategy, exceptionHandler, stepProviders),
                 runShutown -> shutdownLoop(workDone -> workDone && runShutown.getAsBoolean(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
                 threadFactory, nanoClock);
     }
-
 
     @Override
     public void run() {

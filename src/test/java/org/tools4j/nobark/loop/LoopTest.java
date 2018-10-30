@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,10 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Unit test for {@link Loop}.
@@ -245,6 +244,37 @@ public class LoopTest {
     }
 
     @Test
+    public void start_invokeHandlerAndSteps_thenStop() {
+        //given
+        final int minIterationRounds = 10;
+        final RuntimeException step2Exception = new RuntimeException("step 2 test exception");
+        final List<Object> actions = new ArrayList<>();
+        final ExceptionHandler exceptionHandler = (loop, step, throwable) -> actions.add(throwable);
+        final AtomicLong iterationCounter = new AtomicLong();
+        final StoppableThread thread = Loop.start(IdleStrategy.NO_OP, exceptionHandler, Thread::new,
+                () -> actions.add("step 1"),
+                () -> {throw step2Exception;},
+                () -> actions.add("step 3"),
+                () -> iterationCounter.incrementAndGet() == 0
+        );
+
+        //when
+        while (iterationCounter.get() < minIterationRounds) ;
+        thread.stop();
+
+        //then
+        assertFalse(thread.isRunning());
+        assertEquals(3 * iterationCounter.get(), actions.size());
+        assertEquals("step 1", actions.get(0));
+        assertEquals(step2Exception, actions.get(1));
+        assertEquals("step 3", actions.get(2));
+        assertEquals("step 1", actions.get(3));
+        assertEquals(step2Exception, actions.get(4));
+        assertEquals("step 3", actions.get(5));
+        assertEquals("step 3", actions.get(actions.size() - 1));
+    }
+
+    @Test
     public void start_invokeHandlerAndSteps_thenShutdown_keepInvokingHandlerAndShutdownStepsUntilDone() {
         //given
         final int minIterationRounds = 10;
@@ -305,22 +335,22 @@ public class LoopTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void mainLoopThrowsNpe_nullSuppliers() {
+    public void mainLoopThrowsNpe_nullProviders() {
         Loop.mainLoop(workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepProvider[])null);
     }
 
     @Test
-    public void mainLoop_allowsEmptySuppliers() {
+    public void mainLoop_allowsEmptyProviders() {
         Loop.mainLoop(workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER);
     }
 
     @Test(expected = NullPointerException.class)
-    public void shutdownLoopThrowsNpe_nullSuppliers() {
+    public void shutdownLoopThrowsNpe_nullProviders() {
         Loop.shutdownLoop(workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER, (StepProvider[])null);
     }
 
     @Test
-    public void shutdownLoop_allowsEmptySuppliers() {
+    public void shutdownLoop_allowsEmptyProviders() {
         Loop.shutdownLoop(workDone -> true, IdleStrategy.NO_OP, NULL_HANDLER);
     }
 
@@ -340,12 +370,17 @@ public class LoopTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullStepSuppliers() {
+    public void startThrowsNpe_nullStepProviders() {
         Loop.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, (StepProvider[])null);
     }
 
     @Test
     public void start_allowEmptySteps() {
-        Loop.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new);
+        Loop.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, new Step[0]);
+    }
+
+    @Test
+    public void start_allowEmptyStepProviders() {
+        Loop.start(IdleStrategy.NO_OP, NULL_HANDLER, Thread::new, new StepProvider[0]);
     }
 }

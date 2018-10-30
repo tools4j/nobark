@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.junit.Test;
+
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,11 +34,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Unit test for {@link ShutdownableThread}.
@@ -221,16 +219,6 @@ public class ShutdownableThreadTest {
     }
 
     @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullMainRunnable() {
-        ShutdownableThread.start(null, () -> {}, Thread::new);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullShutdownRunnable() {
-        ShutdownableThread.start(() -> {}, null, Thread::new);
-    }
-
-    @Test(expected = NullPointerException.class)
     public void startThrowsNpe_nullMainRunnableFactory() {
         ShutdownableThread.start(null, run -> () -> {}, Thread::new, System::nanoTime);
     }
@@ -242,7 +230,7 @@ public class ShutdownableThreadTest {
 
     @Test(expected = NullPointerException.class)
     public void startThrowsNpe_nullThreadFactory_3params() {
-        ShutdownableThread.start(() -> {}, () -> {}, null);
+        ShutdownableThread.start(run -> () -> {}, run -> () -> {}, null);
     }
 
     @Test(expected = NullPointerException.class)
