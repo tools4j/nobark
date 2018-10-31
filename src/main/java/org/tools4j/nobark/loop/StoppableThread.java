@@ -27,7 +27,6 @@ import sun.misc.Contended;
 
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -37,8 +36,9 @@ import java.util.function.Function;
  */
 public class StoppableThread implements Stoppable {
     private final Function<BooleanSupplier, Runnable> runnableFactory;
+    private final Thread thread;
     @Contended
-    private final AtomicReference<Thread> threadOrNull = new AtomicReference<>(null);
+    private volatile boolean running;
 
     /**
      * Constructor for stoppable thread; it is recommended to use the static start(..) methods instead.
@@ -49,9 +49,9 @@ public class StoppableThread implements Stoppable {
      */
     protected StoppableThread(final Function<BooleanSupplier, Runnable> runnableFactory,
                               final ThreadFactory threadFactory) {
-        final Thread thread = threadFactory.newThread(this::run);
+        this.thread = threadFactory.newThread(this::run);
         this.runnableFactory = Objects.requireNonNull(runnableFactory);
-        this.threadOrNull.set(thread);
+        this.running = true;
         thread.start();
     }
 
@@ -74,17 +74,28 @@ public class StoppableThread implements Stoppable {
     }
 
     public boolean isRunning() {
-        return threadOrNull.get() != null;
+        return running;
     }
 
     @Override
     public void stop() {
-        threadOrNull.set(null);
+        running = false;
+    }
+
+    public void join() {
+        join(0);
+    }
+
+    public void join(final long millis) {
+        try {
+            thread.join(millis);
+        } catch (final InterruptedException e) {
+            throw new IllegalStateException("join was interrupted for thread=" + thread);
+        }
     }
 
     @Override
     public String toString() {
-        final Thread thread = threadOrNull.get();
-        return thread != null ? thread.getName() : "StoppableThread[STOPPED]";
+        return thread.getName();
     }
 }

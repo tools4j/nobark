@@ -261,6 +261,7 @@ public class LoopTest {
         //when
         while (iterationCounter.get() < minIterationRounds) ;
         thread.stop();
+        thread.join();
 
         //then
         assertFalse(thread.isRunning());

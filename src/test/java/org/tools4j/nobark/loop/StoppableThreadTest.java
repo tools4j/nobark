@@ -25,6 +25,8 @@ package org.tools4j.nobark.loop;
 
 import org.junit.Test;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -53,12 +55,14 @@ public class StoppableThreadTest {
 
         //when
         thread.stop();
+        thread.join(100);
 
         //then
         assertFalse(thread.isRunning());
 
         //when
         thread.stop();
+        thread.join();
         thread.stop();
 
         //then
@@ -94,9 +98,41 @@ public class StoppableThreadTest {
 
         //when
         thread.stop();
+        thread.join();
 
         //then
-        assertEquals("StoppableThread[STOPPED]", thread.toString());
+        assertEquals(threadName, thread.toString());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void joinInterrupted() {
+        //given
+        final Thread joiner = Thread.currentThread();
+        final CountDownLatch terminate = new CountDownLatch(1);
+        try {
+            final StoppableThread thread = StoppableThread.start(run -> () -> {
+                //wait for stop
+                while (run.getAsBoolean());
+                catchAll(() -> {
+                    //wait for join
+                    while (joiner.getState() == Thread.State.RUNNABLE);
+                    //interrupt
+                    synchronized (joiner) {
+                        joiner.interrupt();
+                    }
+                    //wait for exception before terminating
+                    terminate.await();
+                    return null;
+                });
+            }, Thread::new);
+
+            //when
+            thread.stop();
+            thread.join();
+        } finally {
+            terminate.countDown();
+        }
+        //then: exception
     }
 
     @Test(expected = NullPointerException.class)
@@ -107,5 +143,13 @@ public class StoppableThreadTest {
     @Test(expected = NullPointerException.class)
     public void startThrowsNpe_nullThreadFactory() {
         StoppableThread.start(run -> () -> {}, null);
+    }
+
+    private void catchAll(final Callable<?> callable) {
+        try {
+            callable.call();
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
     }
 }
