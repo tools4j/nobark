@@ -29,10 +29,8 @@ import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.LongSupplier;
 
 /**
  * A thread that performs a main {@link java.lang.Runnable runnable} in a new thread and another shutdown runnable the
@@ -47,7 +45,6 @@ public class ShutdownableThread implements Shutdownable {
 
     private final Function<BooleanSupplier, Runnable> mainRunnableFactory;
     private final Function<BooleanSupplier, Runnable> shutdownRunnableFactory;
-    private final LongSupplier nanoClock;
     private final Thread thread;
     @Contended
     private final AtomicInteger state = new AtomicInteger(RUNNING);
@@ -60,16 +57,13 @@ public class ShutdownableThread implements Shutdownable {
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
      *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
-     * @param nanoClock                 the nano-time clock used in {@link #awaitTermination(long, TimeUnit) awaitTermination(..)}
      */
     protected ShutdownableThread(final Function<BooleanSupplier, Runnable> mainRunnableFactory,
                                  final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
-                                 final ThreadFactory threadFactory,
-                                 final LongSupplier nanoClock) {
+                                 final ThreadFactory threadFactory) {
         this.mainRunnableFactory = Objects.requireNonNull(mainRunnableFactory);
         this.shutdownRunnableFactory = Objects.requireNonNull(shutdownRunnableFactory);
         this.thread = threadFactory.newThread(this::run);
-        this.nanoClock = Objects.requireNonNull(nanoClock);
         thread.start();
     }
 
@@ -86,25 +80,7 @@ public class ShutdownableThread implements Shutdownable {
     public static ShutdownableThread start(final Function<BooleanSupplier, Runnable> mainRunnableFactory,
                                            final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
                                            final ThreadFactory threadFactory) {
-        return start(mainRunnableFactory, shutdownRunnableFactory, threadFactory, System::nanoTime);
-    }
-
-    /**
-     * Creates, starts and returns a new shutdownable thread.
-     *
-     * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
-     * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
-     *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
-     * @param threadFactory             the factory to provide the thread
-     * @param nanoClock                 the nano-time clock used in {@link #awaitTermination(long, TimeUnit) awaitTermination(..)}
-     * @return the newly created and started shutdownable thread
-     */
-    public static ShutdownableThread start(final Function<BooleanSupplier, Runnable> mainRunnableFactory,
-                                           final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
-                                           final ThreadFactory threadFactory,
-                                           final LongSupplier nanoClock) {
-        return new ShutdownableThread(mainRunnableFactory, shutdownRunnableFactory, threadFactory, nanoClock);
+        return new ShutdownableThread(mainRunnableFactory, shutdownRunnableFactory, threadFactory);
     }
 
     private void run() {
@@ -154,23 +130,27 @@ public class ShutdownableThread implements Shutdownable {
 
     @Override
     public boolean awaitTermination(final long timeout, final TimeUnit unit) {
+        if (timeout < 0) {
+            throw new IllegalArgumentException("timeout value is negative: " + timeout);
+        }
         if (isTerminated()) {
             return true;
         }
-        if (timeout > 0) {
-            final long timeoutNanos = unit.toNanos(timeout);
-            final long start = nanoClock.getAsLong();
-            long wait = timeoutNanos;
-            do {
-                final long sleep = Math.min(100, wait);
-                LockSupport.parkNanos(sleep);
-                if (isTerminated()) {
-                    return true;
-                }
-                wait = timeoutNanos - (nanoClock.getAsLong() - start);
-            } while (wait > 0);
+        if (timeout == 0) {
+            return isTerminated();
         }
-        return false;
+        final long millis = unit.toMillis(timeout);
+        final long nanos = unit.toNanos(timeout - unit.convert(millis, TimeUnit.MILLISECONDS));
+        try {
+            if (nanos == 0) {
+                thread.join(millis);
+            } else {
+                thread.join(millis, (int) nanos);
+            }
+        } catch (final InterruptedException e) {
+            throw new IllegalStateException("Join interrupted for thread " + thread);
+        }
+        return isTerminated();
     }
 
     /**

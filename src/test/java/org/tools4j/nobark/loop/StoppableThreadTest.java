@@ -145,7 +145,7 @@ public class StoppableThreadTest {
         StoppableThread.start(run -> () -> {}, null);
     }
 
-    private void catchAll(final Callable<?> callable) {
+    static void catchAll(final Callable<?> callable) {
         try {
             callable.call();
         } catch (final Exception e) {

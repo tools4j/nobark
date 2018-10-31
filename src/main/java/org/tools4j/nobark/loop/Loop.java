@@ -25,9 +25,7 @@ package org.tools4j.nobark.loop;
 
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.function.LongSupplier;
 
 /**
  * A loop performing a series of {@link Step steps} in an iterative manner as long as the {@link LoopCondition} is true.
@@ -129,34 +127,13 @@ public class Loop implements Runnable {
                                            final ExceptionHandler exceptionHandler,
                                            final ThreadFactory threadFactory,
                                            final StepProvider... stepProviders) {
-        return start(idleStrategy, exceptionHandler, threadFactory, System::nanoTime, stepProviders);
-    }
-
-    /**
-     * Creates, starts and returns a new thread running first a main loop and then another shutdown loop during the
-     * graceful {@link ShutdownableThread#shutdown shutdown} phase.  The loops are created with steps constructed with
-     * the given providers using {@link StepProvider#normalStep(StepProvider) normal} steps for the main loop and
-     * {@link StepProvider#shutdownStep(StepProvider) shutdown} steps for the shutdown loop.
-     *
-     * @param idleStrategy      the strategy handling idle main loop phases
-     * @param exceptionHandler  the step exception handler
-     * @param threadFactory     the factory to provide the service thread
-     * @param nanoClock         the nano-time clock used in {@link ShutdownableThread#awaitTermination(long, TimeUnit) awaitTermination(..)}
-     * @param stepProviders     the providers for the steps executed during the loop
-     * @return the newly created and started thread running the loop
-     */
-    public static ShutdownableThread start(final IdleStrategy idleStrategy,
-                                           final ExceptionHandler exceptionHandler,
-                                           final ThreadFactory threadFactory,
-                                           final LongSupplier nanoClock,
-                                           final StepProvider... stepProviders) {
         Objects.requireNonNull(idleStrategy);
         Objects.requireNonNull(exceptionHandler);
         Objects.requireNonNull(stepProviders);
         return ShutdownableThread.start(
                 runMain -> mainLoop(workDone -> runMain.getAsBoolean(), idleStrategy, exceptionHandler, stepProviders),
                 runShutown -> shutdownLoop(workDone -> workDone && runShutown.getAsBoolean(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
-                threadFactory, nanoClock);
+                threadFactory);
     }
 
     @Override

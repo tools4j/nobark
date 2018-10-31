@@ -25,16 +25,15 @@ package org.tools4j.nobark.loop;
 
 import org.junit.Test;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
-import java.util.function.LongSupplier;
 
 import static org.junit.Assert.*;
+import static org.tools4j.nobark.loop.StoppableThreadTest.catchAll;
 
 /**
  * Unit test for {@link ShutdownableThread}.
@@ -136,28 +135,31 @@ public class ShutdownableThreadTest {
         assertTrue(thread.isTerminated());
     }
 
+
     @Test
     public void awaitTermination() {
         //given
         final AtomicBoolean terminate = new AtomicBoolean(false);
-        final long startTime = 1234;
-        final int increment = 100;
-        final AtomicLong nanoTime = new AtomicLong(startTime);
-        final LongSupplier nanoClock = () -> nanoTime.getAndAdd(increment);
         final Function<BooleanSupplier, Runnable> loopTillTerminate = loopUntil(() -> !terminate.get());
-        final ShutdownableThread thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, Thread::new, nanoClock);
+        final ShutdownableThread thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, Thread::new);
         boolean terminated;
 
         //when
         thread.shutdown();
 
         //when
-        terminated = thread.awaitTermination(0, TimeUnit.SECONDS);
+        terminated = thread.awaitTermination(10, TimeUnit.MILLISECONDS);
 
         //then
         assertFalse(terminated);
         assertFalse(thread.isTerminated());
-        assertEquals(startTime, nanoTime.get());
+
+        //when
+        terminated = thread.awaitTermination(2345, TimeUnit.MICROSECONDS);
+
+        //then
+        assertFalse(terminated);
+        assertFalse(thread.isTerminated());
 
         //when
         thread.awaitTermination(500, TimeUnit.NANOSECONDS);
@@ -165,19 +167,10 @@ public class ShutdownableThreadTest {
         //then
         assertFalse(terminated);
         assertFalse(thread.isTerminated());
-        assertEquals(startTime + increment + (500/100)*increment, nanoTime.get());
-
-        //when
-        thread.awaitTermination(30, TimeUnit.MICROSECONDS);
-
-        //then
-        assertFalse(terminated);
-        assertFalse(thread.isTerminated());
-        assertEquals(startTime + increment + (500/100)*increment + increment + (30000/100)*increment, nanoTime.get());
 
         //when
         terminate.set(true);
-        terminated = thread.awaitTermination(300, TimeUnit.MILLISECONDS);
+        terminated = thread.awaitTermination(5, TimeUnit.SECONDS);
 
         //then
         assertTrue(terminated);
@@ -185,19 +178,25 @@ public class ShutdownableThreadTest {
     }
 
     @Test
-    public void awaitTerminationReturnsImmediately() throws InterruptedException {
+    public void awaitTimeout_zeroWaitsNotAtAll() {
+        //given
+        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, run -> () -> {}, Thread::new);
+
+        //when + then
+        assertFalse(thread.awaitTermination(0, TimeUnit.SECONDS));
+        assertFalse(thread.isTerminated());
+
+        thread.shutdownNow();
+    }
+
+    @Test
+    public void toString_ReturnsThreadName() {
         //given
         final String threadName = "loop-thread";
-        final AtomicReference<Runnable> runnableHolder = new AtomicReference<>();
-        final Thread t = new Thread(null, () -> {
-            if (runnableHolder.get() != null) runnableHolder.get().run();
-        }, threadName);
-        final ThreadFactory threadFactory = r -> {runnableHolder.set(r); return t;};
-        final AtomicBoolean terminate = new AtomicBoolean(false);
-        final Function<BooleanSupplier, Runnable> loopTillTerminate = loopUntil(() -> !terminate.get());
+        final ThreadFactory factory = runnable -> new Thread(null, runnable, threadName);
 
         //when
-        final ShutdownableThread thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, threadFactory);
+        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, shutdown -> () -> {}, factory);
 
         //then
         assertEquals(threadName, thread.toString());
@@ -206,42 +205,70 @@ public class ShutdownableThreadTest {
         thread.shutdown();
 
         //then
-        assertFalse(thread.awaitTermination(100, TimeUnit.MILLISECONDS));
-
-        //when
-        terminate.set(true);
-        t.join(TimeUnit.SECONDS.toMillis(5));
-
-        //then
         assertTrue(thread.awaitTermination(5, TimeUnit.SECONDS));
         assertTrue(thread.isTerminated());
         assertEquals(threadName, thread.toString());
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void awaitTermination_negativeTimeout() {
+        //given
+        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, run -> () -> {}, Thread::new);
+
+        try {
+            //when
+            thread.awaitTermination(-100, TimeUnit.NANOSECONDS);
+
+            //then: exception
+        } finally {
+            //cleanup
+            thread.shutdown();
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void awaitTerminationInterrupted() {
+        //given
+        final Thread awaiter = Thread.currentThread();
+        final CountDownLatch terminate = new CountDownLatch(1);
+        try {
+            final ShutdownableThread thread = ShutdownableThread.start(run -> () -> {
+                //wait for stop
+                while (run.getAsBoolean());
+                catchAll(() -> {
+                    //wait for awaitTermination call
+                    while (awaiter.getState() == Thread.State.RUNNABLE);
+                    //interrupt
+                    synchronized (awaiter) {
+                        awaiter.interrupt();
+                    }
+                    //wait for exception before terminating
+                    terminate.await();
+                    return null;
+                });
+            }, run -> () -> {}, Thread::new);
+
+            //when
+            thread.shutdown();
+            thread.awaitTermination(10, TimeUnit.SECONDS);
+        } finally {
+            terminate.countDown();
+        }
+        //then: exception
+    }
+
     @Test(expected = NullPointerException.class)
     public void startThrowsNpe_nullMainRunnableFactory() {
-        ShutdownableThread.start(null, run -> () -> {}, Thread::new, System::nanoTime);
+        ShutdownableThread.start(null, run -> () -> {}, Thread::new);
     }
 
     @Test(expected = NullPointerException.class)
     public void startThrowsNpe_nullShutdowRunnableFactory() {
-        ShutdownableThread.start(run -> () -> {}, null, Thread::new, System::nanoTime);
+        ShutdownableThread.start(run -> () -> {}, null, Thread::new);
     }
 
     @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullThreadFactory_3params() {
+    public void startThrowsNpe_nullThreadFactory() {
         ShutdownableThread.start(run -> () -> {}, run -> () -> {}, null);
     }
-
-    @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullThreadFactory_4params() {
-        ShutdownableThread.start(run -> () -> {}, run -> () -> {}, null, System::nanoTime);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void startThrowsNpe_nullNanoClock() {
-        ShutdownableThread.start(run -> () -> {}, run -> () -> {}, Thread::new, null);
-    }
-
-
 }
