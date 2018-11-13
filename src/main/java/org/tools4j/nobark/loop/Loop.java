@@ -132,7 +132,7 @@ public class Loop implements Runnable {
         Objects.requireNonNull(stepProviders);
         return ShutdownableThread.start(
                 runMain -> mainLoop(workDone -> runMain.getAsBoolean(), idleStrategy, exceptionHandler, stepProviders),
-                runShutown -> shutdownLoop(workDone -> workDone && runShutown.getAsBoolean(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
+                runShutdown -> shutdownLoop(workDone -> workDone && runShutdown.getAsBoolean(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
                 threadFactory);
     }
 
