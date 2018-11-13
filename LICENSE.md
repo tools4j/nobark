@@ -1,4 +1,4 @@
-MIT License
+The MIT License (MIT)
 
 Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
 

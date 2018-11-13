@@ -56,6 +56,14 @@ task copyLicenseToSrc(type: Copy) {
     include('LICENSE.txt')
 }
 
+sourceSets.main.java {
+    srcDirs generatedSrc, 'src/main/java'
+}
+sourceSets.main.resources {
+    srcDirs generatedSrc, 'src/main/java'
+    exclude '**/*.template'
+}
+
 license {
     header rootProject.file('src/main/resources/LICENSE.template')
     strictCheck true
