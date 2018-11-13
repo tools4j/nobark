@@ -15,6 +15,25 @@ when conflation occurs.
 
 [javadoc API](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/queue/package-summary.html)
 
+##### Event loops
+The [loop](https://github.com/tools4j/nobark/tree/master/src/main/java/org/tools4j/nobark/loop) package provides
+interfaces and classes with simple building blocks for event loops based on executable steps.  A
+[Step](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/loop/Step.html) is quite similar
+to a Java ``Runnable`` but it returns a value indicating whether substantial work was performed or not --- based on this
+value an [IdleStrategy](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/loop/IdleStrategy.html)
+allows control over how intensively the event loop occupies the CPU.
+
+[javadoc API](http://javadoc.io/page/org.tools4j/tools4j-nobark/latest/org/tools4j/nobark/loop/package-summary.html)
+
+### Notes
+
+The code makes use of the ``@Contended`` annotation for 
+[false sharing](https://mechanical-sympathy.blogspot.com/2011/07/false-sharing.html) prevention.
+For best performance, this optimisation needs to be unlocked as follows:
+```bash
+java -XX:-RestrictContended ...
+```
+
 ### Gradle
 ```gradle
 dependencies {
