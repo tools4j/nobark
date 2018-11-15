@@ -8,7 +8,7 @@ def generatedSrc = "$buildDir/$generatedSrcName"
 
 sourceCompatibility = 1.8
 group 'org.tools4j'
-version '1.4'
+version '1.5-SNAPSHOT'
 archivesBaseName = "tools4j-nobark"
 
 repositories {
