@@ -1,17 +1,15 @@
-group 'org.tools4j'
-version '1.4-SNAPSHOT'
-
 apply plugin: 'java'
 apply plugin: 'license'
 apply plugin: 'jacoco'
 apply plugin: 'com.github.kt3k.coveralls'
 
-archivesBaseName = "tools4j-nobark"
-
 def generatedSrcName = "generated-src"
 def generatedSrc = "$buildDir/$generatedSrcName"
 
 sourceCompatibility = 1.8
+group 'org.tools4j'
+version '1.4-SNAPSHOT'
+archivesBaseName = "tools4j-nobark"
 
 repositories {
     mavenCentral()
@@ -94,6 +92,13 @@ task javadocJar(type: Jar) {
 task sourcesJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true // coveralls plugin depends on xml format report
+        html.enabled = true
+    }
 }
 
 artifacts {
