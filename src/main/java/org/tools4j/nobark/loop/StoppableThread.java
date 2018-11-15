@@ -23,19 +23,17 @@
  */
 package org.tools4j.nobark.loop;
 
-import sun.misc.Contended;
-
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-import java.util.function.BooleanSupplier;
-import java.util.function.Function;
+
+import sun.misc.Contended;
 
 /**
  * A thread that performs a {@link java.lang.Runnable runnable} in a new thread.
  * The thread is started immediately upon construction and it can be stopped via stop or auto-close method.
  */
 public class StoppableThread implements Stoppable {
-    private final Function<BooleanSupplier, Runnable> runnableFactory;
+    private final RunnableFactory runnableFactory;
     private final Thread thread;
     @Contended
     private volatile boolean running;
@@ -47,8 +45,7 @@ public class StoppableThread implements Stoppable {
      *                          the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory     the factory to provide the thread
      */
-    protected StoppableThread(final Function<BooleanSupplier, Runnable> runnableFactory,
-                              final ThreadFactory threadFactory) {
+    protected StoppableThread(final RunnableFactory runnableFactory, final ThreadFactory threadFactory) {
         this.thread = threadFactory.newThread(this::run);
         this.runnableFactory = Objects.requireNonNull(runnableFactory);
         this.running = true;
@@ -63,13 +60,12 @@ public class StoppableThread implements Stoppable {
      * @param threadFactory     the factory to provide the thread
      * @return the newly created and started stoppable thread
      */
-    public static StoppableThread start(final Function<BooleanSupplier, Runnable> runnableFactory,
-                                        final ThreadFactory threadFactory) {
+    public static StoppableThread start(final RunnableFactory runnableFactory, final ThreadFactory threadFactory) {
         return new StoppableThread(runnableFactory, threadFactory);
     }
 
     private void run() {
-        final Runnable runnable = runnableFactory.apply(this::isRunning);
+        final Runnable runnable = runnableFactory.create(this::isRunning);
         runnable.run();
     }
 

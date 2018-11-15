@@ -107,7 +107,7 @@ public class Loop implements Runnable {
         Objects.requireNonNull(exceptionHandler);
         Objects.requireNonNull(steps);
         return StoppableThread.start(
-                running -> new Loop(workDone -> running.getAsBoolean(), idleStrategy, exceptionHandler, steps),
+                running -> new Loop(workDone -> running.isRunning(), idleStrategy, exceptionHandler, steps),
                 threadFactory);
     }
 
@@ -131,8 +131,8 @@ public class Loop implements Runnable {
         Objects.requireNonNull(exceptionHandler);
         Objects.requireNonNull(stepProviders);
         return ShutdownableThread.start(
-                runMain -> mainLoop(workDone -> runMain.getAsBoolean(), idleStrategy, exceptionHandler, stepProviders),
-                runShutdown -> shutdownLoop(workDone -> workDone && runShutdown.getAsBoolean(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
+                main -> mainLoop(workDone -> main.isRunning(), idleStrategy, exceptionHandler, stepProviders),
+                shutdown -> shutdownLoop(workDone -> workDone && shutdown.isRunning(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
                 threadFactory);
     }
 

@@ -23,25 +23,26 @@
  */
 package org.tools4j.nobark.loop;
 
-import org.junit.Test;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BooleanSupplier;
-import java.util.function.Function;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for {@link StoppableThread}.
  */
 public class StoppableThreadTest {
 
-    private static final Function<BooleanSupplier, Runnable> LOOP_WHILE_RUNNING = run -> () -> {
-        while (run.getAsBoolean());
+    private static final RunnableFactory LOOP_WHILE_RUNNING = run -> () -> {
+        while (run.isRunning());
     };
 
-    private static Function<BooleanSupplier, Runnable> loopUntil(final BooleanSupplier loopCondition) {
+    private static RunnableFactory loopUntil(final BooleanSupplier loopCondition) {
         return run -> () -> {
             while (loopCondition.getAsBoolean()) ;
         };
@@ -112,7 +113,7 @@ public class StoppableThreadTest {
         try {
             final StoppableThread thread = StoppableThread.start(run -> () -> {
                 //wait for stop
-                while (run.getAsBoolean());
+                while (run.isRunning());
                 catchAll(() -> {
                     //wait for join
                     while (joiner.getState() == Thread.State.RUNNABLE);

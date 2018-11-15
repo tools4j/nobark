@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 import static org.tools4j.nobark.loop.ComposableStep.NO_OP;
 
 /**
- * Unit test for {@link Step}
+ * Unit test for {@link ComposableStep}
  */
 public class ComposableStepTest {
 

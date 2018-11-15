@@ -23,14 +23,12 @@
  */
 package org.tools4j.nobark.loop;
 
-import sun.misc.Contended;
-
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BooleanSupplier;
-import java.util.function.Function;
+
+import sun.misc.Contended;
 
 /**
  * A thread that performs a main {@link java.lang.Runnable runnable} in a new thread and another shutdown runnable the
@@ -43,8 +41,8 @@ public class ShutdownableThread implements Shutdownable {
     private static final int SHUTDOWN_NOW = 2;
     private static final int TERMINATED = 4;
 
-    private final Function<BooleanSupplier, Runnable> mainRunnableFactory;
-    private final Function<BooleanSupplier, Runnable> shutdownRunnableFactory;
+    private final RunnableFactory mainRunnableFactory;
+    private final RunnableFactory shutdownRunnableFactory;
     private final Thread thread;
     @Contended
     private final AtomicInteger state = new AtomicInteger(RUNNING);
@@ -58,8 +56,8 @@ public class ShutdownableThread implements Shutdownable {
      *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
      */
-    protected ShutdownableThread(final Function<BooleanSupplier, Runnable> mainRunnableFactory,
-                                 final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
+    protected ShutdownableThread(final RunnableFactory mainRunnableFactory,
+                                 final RunnableFactory shutdownRunnableFactory,
                                  final ThreadFactory threadFactory) {
         this.mainRunnableFactory = Objects.requireNonNull(mainRunnableFactory);
         this.shutdownRunnableFactory = Objects.requireNonNull(shutdownRunnableFactory);
@@ -77,15 +75,15 @@ public class ShutdownableThread implements Shutdownable {
      * @param threadFactory             the factory to provide the thread
      * @return the newly created and started shutdownable thread
      */
-    public static ShutdownableThread start(final Function<BooleanSupplier, Runnable> mainRunnableFactory,
-                                           final Function<BooleanSupplier, Runnable> shutdownRunnableFactory,
+    public static ShutdownableThread start(final RunnableFactory mainRunnableFactory,
+                                           final RunnableFactory shutdownRunnableFactory,
                                            final ThreadFactory threadFactory) {
         return new ShutdownableThread(mainRunnableFactory, shutdownRunnableFactory, threadFactory);
     }
 
     private void run() {
-        final Runnable main = mainRunnableFactory.apply(this::isRunning);
-        final Runnable shutdown = shutdownRunnableFactory.apply(this::isShutdownRunning);
+        final Runnable main = mainRunnableFactory.create(this::isRunning);
+        final Runnable shutdown = shutdownRunnableFactory.create(this::isShutdownRunning);
         main.run();
         shutdown.run();
         notifyTerminated();

@@ -23,16 +23,17 @@
  */
 package org.tools4j.nobark.loop;
 
-import org.junit.Test;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
-import java.util.function.Function;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.tools4j.nobark.loop.StoppableThreadTest.catchAll;
 
 /**
@@ -40,11 +41,11 @@ import static org.tools4j.nobark.loop.StoppableThreadTest.catchAll;
  */
 public class ShutdownableThreadTest {
 
-    private static final Function<BooleanSupplier, Runnable> LOOP_WHILE_RUNNING = run -> () -> {
-        while (run.getAsBoolean());
+    private static final RunnableFactory LOOP_WHILE_RUNNING = run -> () -> {
+        while (run.isRunning());
     };
 
-    private static Function<BooleanSupplier, Runnable> loopUntil(final BooleanSupplier loopCondition) {
+    private static RunnableFactory loopUntil(final BooleanSupplier loopCondition) {
         return run -> () -> {
             while (loopCondition.getAsBoolean()) ;
         };
@@ -140,7 +141,7 @@ public class ShutdownableThreadTest {
     public void awaitTermination() {
         //given
         final AtomicBoolean terminate = new AtomicBoolean(false);
-        final Function<BooleanSupplier, Runnable> loopTillTerminate = loopUntil(() -> !terminate.get());
+        final RunnableFactory loopTillTerminate = loopUntil(() -> !terminate.get());
         final ShutdownableThread thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, Thread::new);
         boolean terminated;
 
@@ -234,7 +235,7 @@ public class ShutdownableThreadTest {
         try {
             final ShutdownableThread thread = ShutdownableThread.start(run -> () -> {
                 //wait for stop
-                while (run.getAsBoolean());
+                while (run.isRunning());
                 catchAll(() -> {
                     //wait for awaitTermination call
                     while (awaiter.getState() == Thread.State.RUNNABLE);
