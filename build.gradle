@@ -2,7 +2,9 @@ group 'org.tools4j'
 version '1.4-SNAPSHOT'
 
 apply plugin: 'java'
-apply plugin: "com.github.hierynomus.license"
+apply plugin: 'license'
+apply plugin: 'jacoco'
+apply plugin: 'com.github.kt3k.coveralls'
 
 archivesBaseName = "tools4j-nobark"
 
@@ -24,7 +26,7 @@ buildscript {
 	dependencies {
         classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
         classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.11.0"
-//        classpath "org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.2"
+        classpath "org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.2"
 	}
 }
 

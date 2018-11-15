@@ -23,37 +23,80 @@
  */
 package org.tools4j.nobark.queue;
 
-import org.HdrHistogram.Histogram;
-import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
+
+import org.HdrHistogram.Histogram;
+import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
+import org.junit.Test;
 
 public class ConflationQueuePerfTest {
 
-    public static void main(final String[] args) throws InterruptedException {
+    private static final String SENTINEL_KEY = "key_sentinel";
 
-        final String sentinelKey = "key_sentinel";
-
-        final int keyCount = 20*50;//markets x symbols
+    public static void main(final String[] args) throws Exception {
+        final int keyCount = 20 * 50;//markets x symbols
         final long totalUpdates = 2000000;
         //final double frequencyPerSecondAndKey = 500;
         final double frequencyPerSecondAndKey = 200;
         //final double producerSleepNanos = 0;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
 
-        final List<String> keys = new ArrayList<>(keyCount + 1);
-        for (int i = 0; i < keyCount; i++) keys.add("key_" + i);
-        keys.add(sentinelKey);
-
         //final ConflationQueue<String, PriceEntry> conflationQueue;
         //conflationQueue = new AtomicConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
-        final ExchangeConflationQueue<String, PriceEntry> conflationQueue;
         //conflationQueue = new EvictConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
-        conflationQueue = new MergeConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), new PriceEntry.Merger(), keys);
+        //conflationQueue = new MergeConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), new PriceEntry.Merger(), keys);\\
+        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
+                keys -> new EvictConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keys.size()), keys);
+        new ConflationQueuePerfTest().runTest(keyCount, totalUpdates, producerSleepNanos, queueFactory);
+    }
+
+    @Test
+    public void atomicConflationQueue() throws Exception {
+        final int keyCount = 20 * 50;//markets x symbols
+        final long totalUpdates = 500000;
+        final double frequencyPerSecondAndKey = 1000;
+        final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
+        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new AtomicConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys
+        ));
+    }
+
+    @Test
+    public void evictConflationQueue() throws Exception {
+        final int keyCount = 20 * 50;//markets x symbols
+        final long totalUpdates = 500000;
+        final double frequencyPerSecondAndKey = 1000;
+        final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
+        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new EvictConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keys.size()), keys)
+        );
+    }
+
+    @Test
+    public void mergeConflationQueue() throws Exception {
+        final int keyCount = 20 * 50;//markets x symbols
+        final long totalUpdates = 500000;
+        final double frequencyPerSecondAndKey = 1000;
+        final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
+        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new MergeConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keys.size()), new PriceEntry.Merger(), keys)
+        );
+    }
+
+    private void runTest(final int keyCount, final long totalUpdates,
+                         final double producerSleepNanos,
+                         final Function<List<String>, ? extends ConflationQueue<String, PriceEntry>> queueFactory) throws Exception {
+
+        final List<String> keys = new ArrayList<>(keyCount + 1);
+        for (int i = 0; i < keyCount; i++) keys.add("key_" + i);
+        keys.add(SENTINEL_KEY);
+
+        final ConflationQueue<String, PriceEntry> conflationQueue = queueFactory.apply(keys);
 
         ConflationQueueBuilder
                 .<String,PriceEntry>declareAllConflationKeys(keys)
@@ -64,7 +107,10 @@ public class ConflationQueuePerfTest {
 
         final Thread consumerThread = new Thread(() -> {
             //final ConflationQueue.Poller<String, PriceEntry> poller = conflationQueue.poller();
-            final ExchangeConflationQueue.ExchangePoller<String, PriceEntry> poller = conflationQueue.poller();
+            final ConflationQueue.Poller<String, PriceEntry> poller = conflationQueue.poller();
+            final EvictConflationQueue.ExchangePoller<String, PriceEntry> exchangePoller =
+                    poller instanceof EvictConflationQueue.ExchangePoller<?,?> ?
+                    (EvictConflationQueue.ExchangePoller<String, PriceEntry>)poller : null;
             final Histogram mergedEntriesHistogram = new Histogram(1, totalUpdates, 3);
             final Histogram inQueueLatencyHistogram = new Histogram(1, TimeUnit.SECONDS.toNanos(100), 3);
             final Histogram lastUpdateLatencyHistogram = new Histogram(1, TimeUnit.SECONDS.toNanos(100), 3);
@@ -83,8 +129,7 @@ public class ConflationQueuePerfTest {
             PriceEntry priceEntry = new PriceEntry();
             final long timeStartMillis = System.currentTimeMillis();
             while (true) {
-                //final PriceEntry polledEntry = poller.poll(keyFetcher);
-                final PriceEntry polledEntry = poller.poll(keyFetcher, priceEntry);
+                final PriceEntry polledEntry = exchangePoller == null ? poller.poll(keyFetcher) : exchangePoller.poll(keyFetcher, priceEntry);
                 if (polledEntry != null) {
                     if (polledEntry.getLast() == totalUpdates) break;
                     receivedCount++;
@@ -183,7 +228,7 @@ public class ConflationQueuePerfTest {
         //ensure it is the last to come out of the queue
         priceEntry.reset();
         priceEntry.setLast(totalUpdates);
-        appender.enqueue(sentinelKey, priceEntry);
+        appender.enqueue(SENTINEL_KEY, priceEntry);
 
         //wait for consumer now
         consumerThread.join();

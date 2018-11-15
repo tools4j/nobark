@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.tools4j.nobark.loop.ComposableStep.NO_OP;
@@ -201,33 +202,48 @@ public class ComposableStepTest {
     }
 
     @Test
+    public void create() {
+        final Step step = () -> true;
+        final ComposableStep composableStep = () -> true;
+        assertSame("no-OP yields same instance", ComposableStep.NO_OP, ComposableStep.create(Step.NO_OP));
+        assertNotSame("new instance from step", step, ComposableStep.create(step));
+        assertSame("same instance if already composable", composableStep, ComposableStep.create(composableStep));
+    }
+
+    @Test
     public void composite_workDoneIfOneStepPerformsWork() {
         //given
         final AtomicBoolean workToDo = new AtomicBoolean();
         final Step workStep = workToDo::get;
 
         //when + then (NO WORK)
-        assertFalse("all steps perform no work", ComposableStep.composite(
-                () -> false,
-                workStep,
-                () -> false
-        ).perform());
+        assertFalse("all steps perform no work",
+                ComposableStep.composite(
+                        () -> false,
+                        workStep,
+                        () -> false
+                ).perform()
+        );
 
         //when + then (Step has WORK)
         workToDo.set(true);
-        assertTrue("work step performed some work", ComposableStep.composite(
-                () -> false,
-                workStep,
-                () -> false
-        ).perform());
+        assertTrue("work step performed some work",
+                ComposableStep.composite(
+                        () -> false,
+                        workStep,
+                        () -> false
+                ).perform()
+        );
 
         //when + then (Other steps have WORK)
         workToDo.set(false);
-        assertTrue("other step performed some work", ComposableStep.composite(
-                () -> false,
-                workStep,
-                () -> true
-        ).perform());
+        assertTrue("other step performed some work",
+                ComposableStep.composite(
+                        () -> false,
+                        workStep,
+                        () -> true
+                ).perform()
+        );
     }
 
     @Test
