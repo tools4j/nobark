@@ -28,11 +28,13 @@ import java.util.concurrent.ThreadFactory;
 
 import sun.misc.Contended;
 
+import static org.tools4j.nobark.loop.RunnableFactory.RunningCondition;
+
 /**
  * A thread that performs a {@link java.lang.Runnable runnable} in a new thread.
  * The thread is started immediately upon construction and it can be stopped via stop or auto-close method.
  */
-public class StoppableThread implements Stoppable {
+public class StoppableThread implements Stoppable, Joinable, RunningCondition {
     private final RunnableFactory runnableFactory;
     private final Thread thread;
     @Contended
@@ -65,10 +67,11 @@ public class StoppableThread implements Stoppable {
     }
 
     private void run() {
-        final Runnable runnable = runnableFactory.create(this::isRunning);
+        final Runnable runnable = runnableFactory.create(this);
         runnable.run();
     }
 
+    @Override
     public boolean isRunning() {
         return running;
     }
@@ -78,10 +81,7 @@ public class StoppableThread implements Stoppable {
         running = false;
     }
 
-    public void join() {
-        join(0);
-    }
-
+    @Override
     public void join(final long millis) {
         try {
             thread.join(millis);
