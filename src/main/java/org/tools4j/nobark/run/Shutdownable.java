@@ -21,10 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import org.tools4j.nobark.loop.Step;
 
 /**
  * Shutdownable is a running service such as a thread that can be shutdown orderly or abruptly in a way similar to
@@ -80,6 +82,7 @@ public interface Shutdownable {
      * @param unit the time unit of the timeout argument
      * @return {@code true} if this executor terminated and
      *         {@code false} if the timeout elapsed before termination
+     * @throws IllegalStateException if any thread has interrupted the current thread
      */
     boolean awaitTermination(long timeout, TimeUnit unit);
 }

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
@@ -34,12 +34,11 @@ import sun.misc.Contended;
  * A thread that performs a main {@link java.lang.Runnable runnable} in a new thread and another shutdown runnable the
  * graceful {@link #shutdown} phase of the thread.  The thread is started immediately upon construction.
  */
-public class ShutdownableThread implements Shutdownable {
+public class ShutdownableThread implements ThreadLike, Shutdownable {
 
     private static final int RUNNING = 0;
     private static final int SHUTDOWN = 1;
     private static final int SHUTDOWN_NOW = 2;
-    private static final int TERMINATED = 4;
 
     private final RunnableFactory mainRunnableFactory;
     private final RunnableFactory shutdownRunnableFactory;
@@ -51,7 +50,7 @@ public class ShutdownableThread implements Shutdownable {
      * Constructor for shutdownable thread; it is recommended to use the static start(..) methods instead.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #isMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
      *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
@@ -69,7 +68,7 @@ public class ShutdownableThread implements Shutdownable {
      * Creates, starts and returns a new shutdownable thread.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #isMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
      *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
@@ -82,11 +81,10 @@ public class ShutdownableThread implements Shutdownable {
     }
 
     private void run() {
-        final Runnable main = mainRunnableFactory.create(this::isRunning);
+        final Runnable main = mainRunnableFactory.create(this::isMainRunning);
         final Runnable shutdown = shutdownRunnableFactory.create(this::isShutdownRunning);
         main.run();
         shutdown.run();
-        notifyTerminated();
     }
 
     @Override
@@ -102,13 +100,7 @@ public class ShutdownableThread implements Shutdownable {
         }
     }
 
-    private void notifyTerminated() {
-        if (!state.compareAndSet(SHUTDOWN, SHUTDOWN | TERMINATED)) {
-            state.compareAndSet(SHUTDOWN | SHUTDOWN_NOW, SHUTDOWN | SHUTDOWN_NOW | TERMINATED);
-        }
-    }
-
-    private boolean isRunning() {
+    private boolean isMainRunning() {
         return (state.get() & SHUTDOWN) == 0;
     }
 
@@ -123,7 +115,7 @@ public class ShutdownableThread implements Shutdownable {
 
     @Override
     public boolean isTerminated() {
-        return (state.get() & TERMINATED) != 0;
+        return isShutdown() && threadState() == Thread.State.TERMINATED;
     }
 
     @Override
@@ -149,6 +141,27 @@ public class ShutdownableThread implements Shutdownable {
             throw new IllegalStateException("Join interrupted for thread " + thread);
         }
         return isTerminated();
+    }
+
+    @Override
+    public Thread.State threadState() {
+        return thread.getState();
+    }
+
+    /**
+     * Calls {@link #shutdown()}.
+     */
+    @Override
+    public void stop() {
+        shutdown();
+    }
+
+    /**
+     * Delegates to {@link #awaitTermination(long, TimeUnit)}.
+     */
+    @Override
+    public void join(final long millis) {
+        awaitTermination(millis, TimeUnit.MILLISECONDS);
     }
 
     /**

@@ -26,6 +26,8 @@ package org.tools4j.nobark.loop;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 
+import org.tools4j.nobark.run.ShutdownableThread;
+
 /**
  * Provider for {@link Step} distinguishing between normal (main loop) steps and shutdown steps that are used during the
  * termination phase of a {@link ShutdownableThread} as returned by

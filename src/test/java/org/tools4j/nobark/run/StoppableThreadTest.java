@@ -21,11 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.BooleanSupplier;
 
 import org.junit.Test;
 
@@ -39,27 +38,23 @@ import static org.junit.Assert.assertTrue;
 public class StoppableThreadTest {
 
     private static final RunnableFactory LOOP_WHILE_RUNNING = run -> () -> {
-        while (run.isRunning());
+        while (run.keepRunning());
     };
-
-    private static RunnableFactory loopUntil(final BooleanSupplier loopCondition) {
-        return run -> () -> {
-            while (loopCondition.getAsBoolean()) ;
-        };
-    }
 
     @Test
     public void stop() {
         //given
-        final StoppableThread thread = StoppableThread.start(LOOP_WHILE_RUNNING, Thread::new);
+        final ThreadLike thread = StoppableThread.start(LOOP_WHILE_RUNNING, Thread::new);
         assertTrue(thread.isRunning());
+        assertFalse(thread.isTerminated());
 
         //when
         thread.stop();
-        thread.join(100);
+        thread.join(1000);
 
         //then
         assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
 
         //when
         thread.stop();
@@ -68,22 +63,25 @@ public class StoppableThreadTest {
 
         //then
         assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
     }
 
     @Test
     public void close() {
         //given
-        StoppableThread thread;
+        ThreadLike thread;
 
-        try (final StoppableThread t = StoppableThread.start(LOOP_WHILE_RUNNING, Thread::new)) {
+        try (final ThreadLike t = StoppableThread.start(LOOP_WHILE_RUNNING, Thread::new)) {
             assertTrue(t.isRunning());
             thread = t;
         }
 
-        //when: stopped throough auto close
+        //when
+        thread.join(1000);
 
         //then
         assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
     }
 
     @Test
@@ -92,7 +90,7 @@ public class StoppableThreadTest {
         final String threadName = "mainLoopThread";
 
         //when
-        final StoppableThread thread = StoppableThread.start(LOOP_WHILE_RUNNING, r -> new Thread(null, r, threadName));
+        final ThreadLike thread = StoppableThread.start(LOOP_WHILE_RUNNING, r -> new Thread(null, r, threadName));
 
         //then
         assertEquals(threadName, thread.toString());
@@ -111,9 +109,9 @@ public class StoppableThreadTest {
         final Thread joiner = Thread.currentThread();
         final CountDownLatch terminate = new CountDownLatch(1);
         try {
-            final StoppableThread thread = StoppableThread.start(run -> () -> {
+            final ThreadLike thread = StoppableThread.start(run -> () -> {
                 //wait for stop
-                while (run.isRunning());
+                while (run.keepRunning());
                 catchAll(() -> {
                     //wait for join
                     while (joiner.getState() == Thread.State.RUNNABLE);
