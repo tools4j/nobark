@@ -23,6 +23,7 @@
  */
 package org.tools4j.nobark.run;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -55,8 +56,10 @@ public interface Shutdownable {
      * to do that.
      * <p>
      * Invocation has no additional effect if already shut down.
+     *
+     * @return list of tasks that never commenced execution if any, otherwise an empty list
      */
-    void shutdownNow();
+    List<Runnable> shutdownNow();
 
     /**
      * Returns {@code true} if this service has been shut down.
