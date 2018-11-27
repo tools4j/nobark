@@ -23,6 +23,7 @@
  */
 package org.tools4j.nobark.run;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +34,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.tools4j.nobark.run.StoppableThreadTest.catchAll;
 
@@ -119,10 +121,11 @@ public class ShutdownableThreadTest {
         assertFalse(thread.isTerminated());
 
         //when
-        thread.shutdownNow();
+        final List<Runnable> notStarted = thread.shutdownNow();
 
         //then
         assertTrue(thread.isShutdown());
+        assertTrue(notStarted.isEmpty());
 
         //when
         thread.awaitTermination(5, TimeUnit.SECONDS);
@@ -131,11 +134,12 @@ public class ShutdownableThreadTest {
         assertTrue(thread.isTerminated());
 
         //when
-        thread.shutdownNow();
+        final List<Runnable> stillNotStarted = thread.shutdownNow();
 
         //then
         assertTrue(thread.isShutdown());
         assertTrue(thread.isTerminated());
+        assertSame(notStarted, stillNotStarted);
     }
 
 

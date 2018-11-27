@@ -23,6 +23,8 @@
  */
 package org.tools4j.nobark.run;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -92,12 +94,14 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
         state.compareAndSet(RUNNING, SHUTDOWN);
     }
 
+
     @Override
-    public void shutdownNow() {
+    public List<Runnable> shutdownNow() {
         final int shutdownAndNow = SHUTDOWN | SHUTDOWN_NOW;
         if (!state.compareAndSet(RUNNING, shutdownAndNow)) {
             state.compareAndSet(SHUTDOWN, shutdownAndNow);
         }
+        return Collections.emptyList();
     }
 
     private boolean isMainRunning() {
