@@ -21,20 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 
 import sun.misc.Contended;
 
-import static org.tools4j.nobark.loop.RunnableFactory.RunningCondition;
-
 /**
  * A thread that performs a {@link java.lang.Runnable runnable} in a new thread.
  * The thread is started immediately upon construction and it can be stopped via stop or auto-close method.
  */
-public class StoppableThread implements Stoppable, Joinable, RunningCondition {
+public class StoppableThread implements ThreadLike {
     private final RunnableFactory runnableFactory;
     private final Thread thread;
     @Contended
@@ -44,7 +42,7 @@ public class StoppableThread implements Stoppable, Joinable, RunningCondition {
      * Constructor for stoppable thread; it is recommended to use the static start(..) methods instead.
      *
      * @param runnableFactory   the factory for the runnable;
-     *                          the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                          the <i>{@link #keepRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory     the factory to provide the thread
      */
     protected StoppableThread(final RunnableFactory runnableFactory, final ThreadFactory threadFactory) {
@@ -58,7 +56,7 @@ public class StoppableThread implements Stoppable, Joinable, RunningCondition {
      * Creates, starts and returns a new shutdownable thread.
      *
      * @param runnableFactory   the factory for the runnable;
-     *                          the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                          the <i>{@link #keepRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory     the factory to provide the thread
      * @return the newly created and started stoppable thread
      */
@@ -67,13 +65,17 @@ public class StoppableThread implements Stoppable, Joinable, RunningCondition {
     }
 
     private void run() {
-        final Runnable runnable = runnableFactory.create(this);
+        final Runnable runnable = runnableFactory.create(this::keepRunning);
         runnable.run();
     }
 
-    @Override
-    public boolean isRunning() {
+    private boolean keepRunning() {
         return running;
+    }
+
+    @Override
+    public Thread.State threadState() {
+        return thread.getState();
     }
 
     @Override
@@ -86,7 +88,7 @@ public class StoppableThread implements Stoppable, Joinable, RunningCondition {
         try {
             thread.join(millis);
         } catch (final InterruptedException e) {
-            throw new IllegalStateException("join was interrupted for thread=" + thread);
+            throw new IllegalStateException("Join interrupted for thread " + thread);
         }
     }
 

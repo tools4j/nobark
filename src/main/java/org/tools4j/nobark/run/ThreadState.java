@@ -21,43 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 /**
- * Joinable is a running service such as a thread that can be {@link #join() joined} to await
- * its termination.
+ * The running state is a property of a running service such as a thread and is closely related to
+ * {@link Thread.State}.
  */
 @FunctionalInterface
-public interface Joinable {
+public interface ThreadState {
+
     /**
-     * Waits for this Joinable to die.
+     * Returns the state of the underlying thread.
      *
-     * <p> An invocation of this method behaves in exactly the same
-     * way as the invocation
-     *
-     * <blockquote>
-     * {@linkplain #join(long) join}{@code (0)}
-     * </blockquote>
-     *
-     * @throws  IllegalStateException
-     *          if any thread has interrupted the current thread
-     * @see Thread#join()
+     * @return the underlying thread's state
+     * @see Thread#getState()
      */
-    default void join() {
-        join(0);
+    Thread.State threadState();
+
+    /**
+     * Returns true if the underlying thread has been started but has not yet terminated.
+     *
+     * @return  true if {@link #threadState() thread state} is neither {@link Thread.State#NEW NEW} nor
+     *          {@link Thread.State#TERMINATED TERMINATED}
+     */
+    default boolean isRunning() {
+        final Thread.State state = threadState();
+        return state != Thread.State.NEW & state != Thread.State.TERMINATED;
     }
 
     /**
-     * Waits at most {@code millis} milliseconds for this Joinable to
-     * die. A timeout of {@code 0} means to wait forever.
+     * Returns true if the underlying thread has terminated.
      *
-     * @param  millis
-     *         the time to wait in milliseconds
-     * @throws  IllegalArgumentException
-     *          if the value of {@code millis} is negative
-     * @throws  IllegalStateException
-     *          if any thread has interrupted the current thread
-     * @see Thread#join(long)
+     * @return  true if {@link #threadState() thread state} is {@link Thread.State#TERMINATED TERMINATED}
      */
-    void join(long millis);
+    default boolean isTerminated() {
+        return threadState() == Thread.State.TERMINATED;
+    }
 }

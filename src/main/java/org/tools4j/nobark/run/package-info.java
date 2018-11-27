@@ -21,27 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
-
 /**
- * Stoppable is a running service such as a thread that can be stopped either by calling
- * {@link #stop() stop} or via {@link #close()} method of {@link AutoCloseable}.
+ * Provides interfaces and classes to build {@link org.tools4j.nobark.run.ThreadLike thread-like} running
+ * services that can be stopped, joined or shutdown orderly and abruptly in a controllable way.  The two
+ * main implementations in this package are {@link org.tools4j.nobark.run.StoppableThread StoppableThread}
+ * and {@link org.tools4j.nobark.run.ShutdownableThread ShutdownableThread}.
  */
-@FunctionalInterface
-public interface Stoppable extends AutoCloseable {
-    /**
-     * Stops the service.
-     * <p>
-     * Invocation has no additional effect if already stopped.
-     */
-    void stop();
-
-    /**
-     * Stops the service by calling the {@link #stop()} method.
-     * <p>
-     * Invocation has no additional effect if already stopped.
-     */
-    default void close() {
-        stop();
-    }
-}
+package org.tools4j.nobark.run;

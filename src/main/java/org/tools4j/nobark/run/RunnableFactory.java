@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 /**
  * A factory for a {@link Runnable} that can be stopped by complying with a
@@ -54,6 +54,6 @@ public interface RunnableFactory {
          *
          * @return true to keep running and false to abort
          */
-        boolean isRunning();
+        boolean keepRunning();
     }
 }

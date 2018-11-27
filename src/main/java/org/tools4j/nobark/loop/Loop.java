@@ -27,6 +27,9 @@ import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 
+import org.tools4j.nobark.run.ShutdownableThread;
+import org.tools4j.nobark.run.StoppableThread;
+
 /**
  * A loop performing a series of {@link Step steps} in an iterative manner as long as the {@link LoopCondition} is true.
  * If no step performs any work in a whole iteration, an {@link IdleStrategy} is invoked.
@@ -107,7 +110,7 @@ public class Loop implements Runnable {
         Objects.requireNonNull(exceptionHandler);
         Objects.requireNonNull(steps);
         return StoppableThread.start(
-                running -> new Loop(workDone -> running.isRunning(), idleStrategy, exceptionHandler, steps),
+                running -> new Loop(workDone -> running.keepRunning(), idleStrategy, exceptionHandler, steps),
                 threadFactory);
     }
 
@@ -131,8 +134,8 @@ public class Loop implements Runnable {
         Objects.requireNonNull(exceptionHandler);
         Objects.requireNonNull(stepProviders);
         return ShutdownableThread.start(
-                main -> mainLoop(workDone -> main.isRunning(), idleStrategy, exceptionHandler, stepProviders),
-                shutdown -> shutdownLoop(workDone -> workDone && shutdown.isRunning(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
+                main -> mainLoop(workDone -> main.keepRunning(), idleStrategy, exceptionHandler, stepProviders),
+                shutdown -> shutdownLoop(workDone -> workDone && shutdown.keepRunning(), IdleStrategy.NO_OP, exceptionHandler, stepProviders),
                 threadFactory);
     }
 
