@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -230,8 +230,12 @@ public class MergeConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
             this.state = State.CONFIRMED;
         }
 
-        V markUnusedAndRelease() {
+        V awaitAndRelease() {
             awaitFinalState();
+            return release();
+        }
+
+        V release() {
             final V released = value;
             state = State.UNUSED;
             this.value = null;
@@ -266,24 +270,24 @@ public class MergeConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
             final AppenderListener.Conflation conflation;
             try {
                 if (oldValue.isUnused()) {
+                    old = oldValue.release();
+                    add = value;
                     newValue.confirm();
                     queue.add(entry);
-                    add = value;
                     conflation = AppenderListener.Conflation.UNCONFLATED;
                 } else {
-                    final V previous = oldValue.value;
+                    old = oldValue.awaitAndRelease();
                     try {
-                        add = merger.merge(conflationKey, previous, value);
-                        newValue.confirmWith(add);
-                        conflation = AppenderListener.Conflation.MERGED;
+                        add = merger.merge(conflationKey, old, value);
                     } catch (final Throwable t) {
-                        newValue.confirmWith(previous);
+                        newValue.confirmWith(old);
                         throw t;
                     }
+                    newValue.confirmWith(add);
+                    conflation = AppenderListener.Conflation.MERGED;
                 }
             } finally {
                 markedValue = oldValue;
-                old = oldValue.markUnusedAndRelease();
             }
             //NOTE: ok if below listener throws exception now as it cannot messs with the queue's state
             appenderListener.enqueued(MergeConflationQueue.this, conflationKey, add, old, conflation);
@@ -301,7 +305,7 @@ public class MergeConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
             if (entry != null) {
                 final MarkedValue<V> exchangeValue = markedValue.initalizeWithUnused(exchange);
                 final MarkedValue<V> polledValue = entry.value.getAndSet(exchangeValue);
-                final V value = polledValue.markUnusedAndRelease();
+                final V value = polledValue.awaitAndRelease();
                 markedValue = polledValue;
                 consumer.accept(entry.key, value);
                 pollerListener.polled(MergeConflationQueue.this, entry.key, value);

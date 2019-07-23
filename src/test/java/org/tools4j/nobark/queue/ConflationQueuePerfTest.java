@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,12 +46,12 @@ public class ConflationQueuePerfTest {
         //final double producerSleepNanos = 0;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
 
-        //final ConflationQueue<String, PriceEntry> conflationQueue;
-        //conflationQueue = new AtomicConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
-        //conflationQueue = new EvictConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
-        //conflationQueue = new MergeConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), new PriceEntry.Merger(), keys);\\
+//        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
+//                keys -> new AtomicConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
         final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
                 keys -> new EvictConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keys.size()), keys);
+//        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
+//                keys -> new MergeConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), new PriceEntry.Merger(), keys);
         new ConflationQueuePerfTest().runTest(keyCount, totalUpdates, producerSleepNanos, queueFactory);
     }
 
@@ -106,7 +106,6 @@ public class ConflationQueuePerfTest {
         final Histogram enqueueLatencyHistogram = new Histogram(1, TimeUnit.SECONDS.toNanos(100), 3);
 
         final Thread consumerThread = new Thread(() -> {
-            //final ConflationQueue.Poller<String, PriceEntry> poller = conflationQueue.poller();
             final ConflationQueue.Poller<String, PriceEntry> poller = conflationQueue.poller();
             final EvictConflationQueue.ExchangePoller<String, PriceEntry> exchangePoller =
                     poller instanceof EvictConflationQueue.ExchangePoller<?,?> ?
@@ -157,6 +156,8 @@ public class ConflationQueuePerfTest {
             final long timeEndMillis = System.currentTimeMillis();
             final long totalMillis = timeEndMillis - timeStartMillis;
 
+            System.out.println(conflationQueue.getClass().getSimpleName());
+            System.out.println();
             printHistogram("Merge-count", 1, mergedEntriesHistogram);
             System.out.println();
             printHistogram("In-queue latencies (us)", 1000.0, inQueueLatencyHistogram);
