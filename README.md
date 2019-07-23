@@ -38,7 +38,7 @@ java -XX:-RestrictContended ...
 ### Gradle
 ```gradle
 dependencies {
-    compile 'org.tools4j:tools4j-nobark:1.4'
+    compile 'org.tools4j:tools4j-nobark:1.5'
 }
 ```
 
@@ -47,7 +47,7 @@ dependencies {
 <dependency>
     <groupId>org.tools4j</groupId>
     <artifactId>tools4j-nobark</artifactId>
-    <version>1.4</version>
+    <version>1.5</version>
 </dependency>
 ```
 
