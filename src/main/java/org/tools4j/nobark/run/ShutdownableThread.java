@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -34,12 +36,11 @@ import sun.misc.Contended;
  * A thread that performs a main {@link java.lang.Runnable runnable} in a new thread and another shutdown runnable the
  * graceful {@link #shutdown} phase of the thread.  The thread is started immediately upon construction.
  */
-public class ShutdownableThread implements Shutdownable {
+public class ShutdownableThread implements ThreadLike, Shutdownable {
 
     private static final int RUNNING = 0;
     private static final int SHUTDOWN = 1;
     private static final int SHUTDOWN_NOW = 2;
-    private static final int TERMINATED = 4;
 
     private final RunnableFactory mainRunnableFactory;
     private final RunnableFactory shutdownRunnableFactory;
@@ -51,9 +52,9 @@ public class ShutdownableThread implements Shutdownable {
      * Constructor for shutdownable thread; it is recommended to use the static start(..) methods instead.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
-     *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
      */
     protected ShutdownableThread(final RunnableFactory mainRunnableFactory,
@@ -69,9 +70,9 @@ public class ShutdownableThread implements Shutdownable {
      * Creates, starts and returns a new shutdownable thread.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
-     *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
      * @return the newly created and started shutdownable thread
      */
@@ -82,11 +83,10 @@ public class ShutdownableThread implements Shutdownable {
     }
 
     private void run() {
-        final Runnable main = mainRunnableFactory.create(this::isRunning);
-        final Runnable shutdown = shutdownRunnableFactory.create(this::isShutdownRunning);
+        final Runnable main = mainRunnableFactory.create(this::keepMainRunning);
+        final Runnable shutdown = shutdownRunnableFactory.create(this::keepShutdownRunning);
         main.run();
         shutdown.run();
-        notifyTerminated();
     }
 
     @Override
@@ -94,25 +94,21 @@ public class ShutdownableThread implements Shutdownable {
         state.compareAndSet(RUNNING, SHUTDOWN);
     }
 
+
     @Override
-    public void shutdownNow() {
+    public List<Runnable> shutdownNow() {
         final int shutdownAndNow = SHUTDOWN | SHUTDOWN_NOW;
         if (!state.compareAndSet(RUNNING, shutdownAndNow)) {
             state.compareAndSet(SHUTDOWN, shutdownAndNow);
         }
+        return Collections.emptyList();
     }
 
-    private void notifyTerminated() {
-        if (!state.compareAndSet(SHUTDOWN, SHUTDOWN | TERMINATED)) {
-            state.compareAndSet(SHUTDOWN | SHUTDOWN_NOW, SHUTDOWN | SHUTDOWN_NOW | TERMINATED);
-        }
-    }
-
-    private boolean isRunning() {
+    private boolean keepMainRunning() {
         return (state.get() & SHUTDOWN) == 0;
     }
 
-    private boolean isShutdownRunning() {
+    private boolean keepShutdownRunning() {
         return (state.get() & SHUTDOWN_NOW) == 0;
     }
 
@@ -123,7 +119,7 @@ public class ShutdownableThread implements Shutdownable {
 
     @Override
     public boolean isTerminated() {
-        return (state.get() & TERMINATED) != 0;
+        return threadState() == Thread.State.TERMINATED;
     }
 
     @Override
@@ -133,9 +129,6 @@ public class ShutdownableThread implements Shutdownable {
         }
         if (isTerminated()) {
             return true;
-        }
-        if (timeout == 0) {
-            return isTerminated();
         }
         final long millis = unit.toMillis(timeout);
         final long nanos = unit.toNanos(timeout - unit.convert(millis, TimeUnit.MILLISECONDS));
@@ -149,6 +142,27 @@ public class ShutdownableThread implements Shutdownable {
             throw new IllegalStateException("Join interrupted for thread " + thread);
         }
         return isTerminated();
+    }
+
+    @Override
+    public Thread.State threadState() {
+        return thread.getState();
+    }
+
+    /**
+     * Calls {@link #shutdown()}.
+     */
+    @Override
+    public void stop() {
+        shutdown();
+    }
+
+    /**
+     * Delegates to {@link #awaitTermination(long, TimeUnit)}.
+     */
+    @Override
+    public void join(final long millis) {
+        awaitTermination(millis, TimeUnit.MILLISECONDS);
     }
 
     /**

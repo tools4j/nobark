@@ -21,10 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import org.tools4j.nobark.loop.Step;
 
 /**
  * Shutdownable is a running service such as a thread that can be shutdown orderly or abruptly in a way similar to
@@ -53,8 +56,10 @@ public interface Shutdownable {
      * to do that.
      * <p>
      * Invocation has no additional effect if already shut down.
+     *
+     * @return list of tasks that never commenced execution if any, otherwise an empty list
      */
-    void shutdownNow();
+    List<Runnable> shutdownNow();
 
     /**
      * Returns {@code true} if this service has been shut down.
@@ -64,22 +69,21 @@ public interface Shutdownable {
     boolean isShutdown();
 
     /**
-     * Returns {@code true} if this service has terminated following shut down.  Note that
-     * {@code isTerminated} is never {@code true} unless either {@code shutdown} or
-     * {@code shutdownNow} was called first.
+     * Returns {@code true} if this service has terminated.
      *
-     * @return {@code true} if the service has terminated following shut down
+     * @return {@code true} if the service has terminated.
      */
     boolean isTerminated();
 
     /**
-     * Blocks until all tasks have completed execution after a shutdown request, or the timeout occurs,
-     * whichever happens first.
+     * Blocks until this service has terminated, or the timeout occurs, whichever happens first.
+     * Zero timeout means waiting forever.
      *
-     * @param timeout the maximum time to wait
+     * @param timeout the maximum time to wait, zero to wait indefinitely
      * @param unit the time unit of the timeout argument
      * @return {@code true} if this executor terminated and
      *         {@code false} if the timeout elapsed before termination
+     * @throws IllegalStateException if any thread has interrupted the current thread
      */
     boolean awaitTermination(long timeout, TimeUnit unit);
 }

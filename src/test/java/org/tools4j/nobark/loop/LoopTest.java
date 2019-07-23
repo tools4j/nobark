@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
+import org.tools4j.nobark.run.ShutdownableThread;
+import org.tools4j.nobark.run.StoppableThread;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

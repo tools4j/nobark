@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -33,8 +34,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.tools4j.nobark.loop.StoppableThreadTest.catchAll;
+import static org.tools4j.nobark.run.StoppableThreadTest.catchAll;
 
 /**
  * Unit test for {@link ShutdownableThread}.
@@ -42,8 +44,10 @@ import static org.tools4j.nobark.loop.StoppableThreadTest.catchAll;
 public class ShutdownableThreadTest {
 
     private static final RunnableFactory LOOP_WHILE_RUNNING = run -> () -> {
-        while (run.isRunning());
+        while (run.keepRunning());
     };
+
+    private static final RunnableFactory LOOP_ONCE = run -> () -> {};
 
     private static RunnableFactory loopUntil(final BooleanSupplier loopCondition) {
         return run -> () -> {
@@ -51,10 +55,17 @@ public class ShutdownableThreadTest {
         };
     }
 
+    private static RunnableFactory loopForMillis(final long millis) {
+        return run -> () -> {
+            final long endTime = System.currentTimeMillis() + millis;
+            while (System.currentTimeMillis() < endTime);
+        };
+    }
+
     @Test
     public void shutdown() {
         //given
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, runShutdown -> () -> {}, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, Thread::new);
         assertFalse(thread.isShutdown());
 
         //when
@@ -74,7 +85,7 @@ public class ShutdownableThreadTest {
     @Test
     public void shutdownNow() {
         //given
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_WHILE_RUNNING, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_WHILE_RUNNING, Thread::new);
 
         //then
         assertFalse(thread.isTerminated());
@@ -102,7 +113,7 @@ public class ShutdownableThreadTest {
     @Test
     public void shutdownNowAfterShutdown() {
         //given
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_WHILE_RUNNING, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_WHILE_RUNNING, Thread::new);
 
         //when
         thread.shutdown();
@@ -117,10 +128,11 @@ public class ShutdownableThreadTest {
         assertFalse(thread.isTerminated());
 
         //when
-        thread.shutdownNow();
+        final List<Runnable> notStarted = thread.shutdownNow();
 
         //then
         assertTrue(thread.isShutdown());
+        assertTrue(notStarted.isEmpty());
 
         //when
         thread.awaitTermination(5, TimeUnit.SECONDS);
@@ -129,11 +141,12 @@ public class ShutdownableThreadTest {
         assertTrue(thread.isTerminated());
 
         //when
-        thread.shutdownNow();
+        final List<Runnable> stillNotStarted = thread.shutdownNow();
 
         //then
         assertTrue(thread.isShutdown());
         assertTrue(thread.isTerminated());
+        assertSame(notStarted, stillNotStarted);
     }
 
 
@@ -142,7 +155,7 @@ public class ShutdownableThreadTest {
         //given
         final AtomicBoolean terminate = new AtomicBoolean(false);
         final RunnableFactory loopTillTerminate = loopUntil(() -> !terminate.get());
-        final ShutdownableThread thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(loopTillTerminate, loopTillTerminate, Thread::new);
         boolean terminated;
 
         //when
@@ -179,15 +192,13 @@ public class ShutdownableThreadTest {
     }
 
     @Test
-    public void awaitTimeout_zeroWaitsNotAtAll() {
+    public void awaitTimeout_zeroWaitsForever() {
         //given
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, run -> () -> {}, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(loopForMillis(500), LOOP_ONCE, Thread::new);
 
         //when + then
-        assertFalse(thread.awaitTermination(0, TimeUnit.SECONDS));
-        assertFalse(thread.isTerminated());
-
-        thread.shutdownNow();
+        assertTrue(thread.awaitTermination(0, TimeUnit.SECONDS));
+        assertTrue(thread.isTerminated());
     }
 
     @Test
@@ -197,7 +208,7 @@ public class ShutdownableThreadTest {
         final ThreadFactory factory = runnable -> new Thread(null, runnable, threadName);
 
         //when
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, shutdown -> () -> {}, factory);
+        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, factory);
 
         //then
         assertEquals(threadName, thread.toString());
@@ -214,7 +225,7 @@ public class ShutdownableThreadTest {
     @Test(expected = IllegalArgumentException.class)
     public void awaitTermination_negativeTimeout() {
         //given
-        final ShutdownableThread thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, run -> () -> {}, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, Thread::new);
 
         try {
             //when
@@ -233,9 +244,9 @@ public class ShutdownableThreadTest {
         final Thread awaiter = Thread.currentThread();
         final CountDownLatch terminate = new CountDownLatch(1);
         try {
-            final ShutdownableThread thread = ShutdownableThread.start(run -> () -> {
+            final Shutdownable thread = ShutdownableThread.start(run -> () -> {
                 //wait for stop
-                while (run.isRunning());
+                while (run.keepRunning());
                 catchAll(() -> {
                     //wait for awaitTermination call
                     while (awaiter.getState() == Thread.State.RUNNABLE);
@@ -256,6 +267,49 @@ public class ShutdownableThreadTest {
             terminate.countDown();
         }
         //then: exception
+    }
+
+    @Test
+    public void stop() {
+        //given
+        final ThreadLike thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, Thread::new);
+        assertTrue(thread.isRunning());
+        assertFalse(thread.isTerminated());
+
+        //when
+        thread.stop();
+        thread.join(1000);
+
+        //then
+        assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
+
+        //when
+        thread.stop();
+        thread.join();
+        thread.stop();
+
+        //then
+        assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
+    }
+
+    @Test
+    public void close() {
+        //given
+        final ThreadLike thread;
+
+        try (final ThreadLike t = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, Thread::new)) {
+            assertTrue(t.isRunning());
+            thread = t;
+        }
+
+        //when
+        thread.join(1000);
+
+        //then
+        assertFalse(thread.isRunning());
+        assertTrue(thread.isTerminated());
     }
 
     @Test(expected = NullPointerException.class)

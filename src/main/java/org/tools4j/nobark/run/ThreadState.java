@@ -21,27 +21,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.loop;
+package org.tools4j.nobark.run;
 
 /**
- * Stoppable is a running service such as a thread that can be stopped either by calling
- * {@link #stop() stop} or via {@link #close()} method of {@link AutoCloseable}.
+ * The running state is a property of a running service such as a thread and is closely related to
+ * {@link Thread.State}.
  */
 @FunctionalInterface
-public interface Stoppable extends AutoCloseable {
-    /**
-     * Stops the service.
-     * <p>
-     * Invocation has no additional effect if already stopped.
-     */
-    void stop();
+public interface ThreadState {
 
     /**
-     * Stops the service by calling the {@link #stop()} method.
-     * <p>
-     * Invocation has no additional effect if already stopped.
+     * Returns the state of the underlying thread.
+     *
+     * @return the underlying thread's state
+     * @see Thread#getState()
      */
-    default void close() {
-        stop();
+    Thread.State threadState();
+
+    /**
+     * Returns true if the underlying thread has been started but has not yet terminated.
+     *
+     * @return  true if {@link #threadState() thread state} is neither {@link Thread.State#NEW NEW} nor
+     *          {@link Thread.State#TERMINATED TERMINATED}
+     */
+    default boolean isRunning() {
+        final Thread.State state = threadState();
+        return state != Thread.State.NEW & state != Thread.State.TERMINATED;
+    }
+
+    /**
+     * Returns true if the underlying thread has terminated.
+     *
+     * @return  true if {@link #threadState() thread state} is {@link Thread.State#TERMINATED TERMINATED}
+     */
+    default boolean isTerminated() {
+        return threadState() == Thread.State.TERMINATED;
     }
 }
