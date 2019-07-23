@@ -55,6 +55,13 @@ public class ShutdownableThreadTest {
         };
     }
 
+    private static RunnableFactory loopForMillis(final long millis) {
+        return run -> () -> {
+            final long endTime = System.currentTimeMillis() + millis;
+            while (System.currentTimeMillis() < endTime);
+        };
+    }
+
     @Test
     public void shutdown() {
         //given
@@ -185,15 +192,13 @@ public class ShutdownableThreadTest {
     }
 
     @Test
-    public void awaitTimeout_zeroWaitsNotAtAll() {
+    public void awaitTimeout_zeroWaitsForever() {
         //given
-        final Shutdownable thread = ShutdownableThread.start(LOOP_WHILE_RUNNING, LOOP_ONCE, Thread::new);
+        final Shutdownable thread = ShutdownableThread.start(loopForMillis(500), LOOP_ONCE, Thread::new);
 
         //when + then
-        assertFalse(thread.awaitTermination(0, TimeUnit.SECONDS));
-        assertFalse(thread.isTerminated());
-
-        thread.shutdownNow();
+        assertTrue(thread.awaitTermination(0, TimeUnit.SECONDS));
+        assertTrue(thread.isTerminated());
     }
 
     @Test

@@ -69,19 +69,17 @@ public interface Shutdownable {
     boolean isShutdown();
 
     /**
-     * Returns {@code true} if this service has terminated following shut down.  Note that
-     * {@code isTerminated} is never {@code true} unless either {@code shutdown} or
-     * {@code shutdownNow} was called first.
+     * Returns {@code true} if this service has terminated.
      *
-     * @return {@code true} if the service has terminated following shut down
+     * @return {@code true} if the service has terminated.
      */
     boolean isTerminated();
 
     /**
-     * Blocks until all tasks have completed execution after a shutdown request, or the timeout occurs,
-     * whichever happens first.
+     * Blocks until this service has terminated, or the timeout occurs, whichever happens first.
+     * Zero timeout means waiting forever.
      *
-     * @param timeout the maximum time to wait
+     * @param timeout the maximum time to wait, zero to wait indefinitely
      * @param unit the time unit of the timeout argument
      * @return {@code true} if this executor terminated and
      *         {@code false} if the timeout elapsed before termination

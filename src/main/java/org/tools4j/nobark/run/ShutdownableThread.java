@@ -52,9 +52,9 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
      * Constructor for shutdownable thread; it is recommended to use the static start(..) methods instead.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isMainRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
-     *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
      */
     protected ShutdownableThread(final RunnableFactory mainRunnableFactory,
@@ -70,9 +70,9 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
      * Creates, starts and returns a new shutdownable thread.
      *
      * @param mainRunnableFactory       the factory for the main runnable;
-     *                                  the <i>{@link #isMainRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepMainRunning}</i> condition is passed to the factory as lambda
      * @param shutdownRunnableFactory   the factory for the shutdown phase runnable;
-     *                                  the <i>{@link #isShutdownRunning}</i> condition is passed to the factory as lambda
+     *                                  the <i>{@link #keepShutdownRunning}</i> condition is passed to the factory as lambda
      * @param threadFactory             the factory to provide the thread
      * @return the newly created and started shutdownable thread
      */
@@ -83,8 +83,8 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
     }
 
     private void run() {
-        final Runnable main = mainRunnableFactory.create(this::isMainRunning);
-        final Runnable shutdown = shutdownRunnableFactory.create(this::isShutdownRunning);
+        final Runnable main = mainRunnableFactory.create(this::keepMainRunning);
+        final Runnable shutdown = shutdownRunnableFactory.create(this::keepShutdownRunning);
         main.run();
         shutdown.run();
     }
@@ -104,11 +104,11 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
         return Collections.emptyList();
     }
 
-    private boolean isMainRunning() {
+    private boolean keepMainRunning() {
         return (state.get() & SHUTDOWN) == 0;
     }
 
-    private boolean isShutdownRunning() {
+    private boolean keepShutdownRunning() {
         return (state.get() & SHUTDOWN_NOW) == 0;
     }
 
@@ -119,7 +119,7 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
 
     @Override
     public boolean isTerminated() {
-        return isShutdown() && threadState() == Thread.State.TERMINATED;
+        return threadState() == Thread.State.TERMINATED;
     }
 
     @Override
@@ -129,9 +129,6 @@ public class ShutdownableThread implements ThreadLike, Shutdownable {
         }
         if (isTerminated()) {
             return true;
-        }
-        if (timeout == 0) {
-            return isTerminated();
         }
         final long millis = unit.toMillis(timeout);
         final long nanos = unit.toNanos(timeout - unit.convert(millis, TimeUnit.MILLISECONDS));
