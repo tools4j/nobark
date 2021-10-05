@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,17 +23,16 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.junit.Test;
+import org.tools4j.nobark.run.ShutdownableThread;
+import org.tools4j.nobark.run.StoppableThread;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.junit.Test;
-
-import org.tools4j.nobark.run.ShutdownableThread;
-import org.tools4j.nobark.run.StoppableThread;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

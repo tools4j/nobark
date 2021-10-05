@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,12 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.tools4j.nobark.run.ShutdownableThread;
+import org.tools4j.nobark.run.StoppableThread;
+
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
-
-import org.tools4j.nobark.run.ShutdownableThread;
-import org.tools4j.nobark.run.StoppableThread;
 
 /**
  * A loop performing a series of {@link Step steps} in an iterative manner as long as the {@link LoopCondition} is true.

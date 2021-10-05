@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,10 @@
  */
 package org.tools4j.nobark.loop;
 
+import org.tools4j.nobark.run.ShutdownableThread;
+
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-
-import org.tools4j.nobark.run.ShutdownableThread;
 
 /**
  * Provider for {@link Step} distinguishing between normal (main loop) steps and shutdown steps that are used during the

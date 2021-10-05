@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,16 +23,18 @@
  */
 package org.tools4j.nobark.queue;
 
+import org.HdrHistogram.Histogram;
+import org.agrona.collections.Object2ObjectHashMap;
+import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
-import org.HdrHistogram.Histogram;
-import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
-import org.junit.Test;
+import static org.agrona.collections.Hashing.DEFAULT_LOAD_FACTOR;
 
 public class ConflationQueuePerfTest {
 
@@ -40,68 +42,71 @@ public class ConflationQueuePerfTest {
 
     public static void main(final String[] args) throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 2000000;
+        final long totalUpdates = 5000000;
         //final double frequencyPerSecondAndKey = 500;
-        final double frequencyPerSecondAndKey = 200;
+        final double frequencyPerSecondAndKey = 1000;
         //final double producerSleepNanos = 0;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
 
-//        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
-//                keys -> new AtomicConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys);
-        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
-                keys -> new EvictConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keys.size()), keys);
-//        final Function<List<String>, ConflationQueue<String, PriceEntry>> queueFactory =
-//                keys -> new MergeConflationQueue<>(() -> new ManyToOneConcurrentArrayQueue<>(keyCount), new PriceEntry.Merger(), keys);
-        new ConflationQueuePerfTest().runTest(keyCount, totalUpdates, producerSleepNanos, queueFactory);
+//        final ConflationQueue<String, PriceEntry> conflationQueue = new AtomicConflationQueue<>(
+//                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+//                () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+//                AppenderListener.NOOP, PollerListener.NOOP);
+        final ConflationQueue<String, PriceEntry> conflationQueue = new EvictConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+                () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+                () -> AppenderListener.NOOP, () -> PollerListener.NOOP);
+//        final ConflationQueue<String, PriceEntry> conflationQueue = new MergeConflationQueue<>(
+//                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+//                () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+//                new PriceEntry.Merger(),
+//                () -> AppenderListener.NOOP, () -> PollerListener.NOOP);
+        new ConflationQueuePerfTest().runTest(keyCount, totalUpdates, producerSleepNanos, conflationQueue);
     }
 
     @Test
     public void atomicConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 500000;
+        final long totalUpdates = 2000000;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
-        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new AtomicConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), keys
+        runTest(keyCount, totalUpdates, producerSleepNanos, new AtomicConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+                AppenderListener.NOOP, PollerListener.NOOP
         ));
     }
 
     @Test
     public void evictConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 500000;
+        final long totalUpdates = 2000000;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
-        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new EvictConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keys.size()), keys)
-        );
+        runTest(keyCount, totalUpdates, producerSleepNanos, new EvictConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+                () -> AppenderListener.NOOP, () -> PollerListener.NOOP
+        ));
     }
 
     @Test
     public void mergeConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 500000;
+        final long totalUpdates = 2000000;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
-        runTest(keyCount, totalUpdates, producerSleepNanos, keys -> new MergeConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keys.size()), new PriceEntry.Merger(), keys)
-        );
+        runTest(keyCount, totalUpdates, producerSleepNanos, new MergeConflationQueue<>(
+                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR), new PriceEntry.Merger(),
+                () -> AppenderListener.NOOP, () -> PollerListener.NOOP
+        ));
     }
 
     private void runTest(final int keyCount, final long totalUpdates,
                          final double producerSleepNanos,
-                         final Function<List<String>, ? extends ConflationQueue<String, PriceEntry>> queueFactory) throws Exception {
+                         final ConflationQueue<String, PriceEntry> conflationQueue) throws Exception {
 
         final List<String> keys = new ArrayList<>(keyCount + 1);
         for (int i = 0; i < keyCount; i++) keys.add("key_" + i);
         keys.add(SENTINEL_KEY);
-
-        final ConflationQueue<String, PriceEntry> conflationQueue = queueFactory.apply(keys);
-
-        ConflationQueueBuilder
-                .<String,PriceEntry>declareAllConflationKeys(keys)
-                .withMerging(new PriceEntry.Merger())
-                .build(() -> new ManyToOneConcurrentArrayQueue<>(keyCount));
 
         final Histogram enqueueLatencyHistogram = new Histogram(1, TimeUnit.SECONDS.toNanos(100), 3);
 
@@ -123,7 +128,7 @@ public class ConflationQueuePerfTest {
             long conflated = 0;
             long conflatedDuringWarmup = 0;
             long receivedCount = 0;
-            long warmUp = 200000;
+            long warmUp = 500000;
 
             PriceEntry priceEntry = new PriceEntry();
             final long timeStartMillis = System.currentTimeMillis();

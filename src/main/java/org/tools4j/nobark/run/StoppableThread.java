@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,10 @@
  */
 package org.tools4j.nobark.run;
 
+import sun.misc.Contended;
+
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-
-import sun.misc.Contended;
 
 /**
  * A thread that performs a {@link java.lang.Runnable runnable} in a new thread.
