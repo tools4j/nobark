@@ -25,11 +25,12 @@ package org.tools4j.nobark.queue;
 
 import org.HdrHistogram.Histogram;
 import org.agrona.collections.Object2ObjectHashMap;
-import org.agrona.concurrent.ManyToOneConcurrentArrayQueue;
+import org.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -39,25 +40,26 @@ import static org.agrona.collections.Hashing.DEFAULT_LOAD_FACTOR;
 public class ConflationQueuePerfTest {
 
     private static final String SENTINEL_KEY = "key_sentinel";
+    private static final int WARMUP = 500_000;
 
     public static void main(final String[] args) throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 5000000;
+        final long totalUpdates = 5_000_000;
         //final double frequencyPerSecondAndKey = 500;
-        final double frequencyPerSecondAndKey = 1000;
+        final double frequencyPerSecondAndKey = 2000;
         //final double producerSleepNanos = 0;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
 
 //        final ConflationQueue<String, PriceEntry> conflationQueue = new AtomicConflationQueue<>(
-//                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+//                () -> new OneToOneConcurrentArrayQueue<>(keyCount),
 //                () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
 //                AppenderListener.NOOP, PollerListener.NOOP);
         final ConflationQueue<String, PriceEntry> conflationQueue = new EvictConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+                () -> new OneToOneConcurrentArrayQueue<>(keyCount),
                 () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
                 () -> AppenderListener.NOOP, () -> PollerListener.NOOP);
 //        final ConflationQueue<String, PriceEntry> conflationQueue = new MergeConflationQueue<>(
-//                () -> new ManyToOneConcurrentArrayQueue<>(keyCount),
+//                () -> new OneToOneConcurrentArrayQueue<>(keyCount),
 //                () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
 //                new PriceEntry.Merger(),
 //                () -> AppenderListener.NOOP, () -> PollerListener.NOOP);
@@ -71,7 +73,7 @@ public class ConflationQueuePerfTest {
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new AtomicConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+                () -> new OneToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
                 AppenderListener.NOOP, PollerListener.NOOP
         ));
     }
@@ -83,7 +85,7 @@ public class ConflationQueuePerfTest {
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new EvictConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
+                () -> new OneToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR),
                 () -> AppenderListener.NOOP, () -> PollerListener.NOOP
         ));
     }
@@ -95,7 +97,7 @@ public class ConflationQueuePerfTest {
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new MergeConflationQueue<>(
-                () -> new ManyToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR), new PriceEntry.Merger(),
+                () -> new OneToOneConcurrentArrayQueue<>(keyCount), () -> new Object2ObjectHashMap<>(keyCount, DEFAULT_LOAD_FACTOR), new PriceEntry.Merger(),
                 () -> AppenderListener.NOOP, () -> PollerListener.NOOP
         ));
     }
@@ -128,7 +130,7 @@ public class ConflationQueuePerfTest {
             long conflated = 0;
             long conflatedDuringWarmup = 0;
             long receivedCount = 0;
-            long warmUp = 500000;
+            long warmUp = WARMUP;
 
             PriceEntry priceEntry = new PriceEntry();
             final long timeStartMillis = System.currentTimeMillis();
@@ -197,10 +199,12 @@ public class ConflationQueuePerfTest {
 
         final ConflationQueue.Appender<String, PriceEntry> appender = conflationQueue.appender();
 
+        final Random rnd = new Random();
         PriceEntry priceEntry = new PriceEntry();
         final long timeStartNanos = System.nanoTime();
         for (int i = 0; i < totalUpdates; i++) {
-            final int keyIndex = i % keyCount;//exclude sentinel key here
+            //final int keyIndex = i % keyCount;//exclude sentinel key here
+            final int keyIndex = rnd.nextInt(keyCount);
             final String key = keys.get(keyIndex);
 
             final long timeBefore;
@@ -215,13 +219,13 @@ public class ConflationQueuePerfTest {
             if (exchangedEntry != null) {
                 priceEntry = exchangedEntry;
             } else {
-                if (i >= keyCount && conflationQueue instanceof ExchangeConflationQueue) {
-                    throw new IllegalStateException("should receive an entry back in exchange after first round");
-                }
+//                if (i >= keyCount && conflationQueue instanceof ExchangeConflationQueue) {
+//                    throw new IllegalStateException("should receive an entry back in exchange after first round");
+//                }
                 priceEntry = new PriceEntry();
             }
 
-            if (keyIndex == 0 & producerSleepNanos != 0) {
+            if (producerSleepNanos != 0 && (i % keyCount) == 0) {
                 final long timeExpectedNanos = (long)((i * producerSleepNanos) / keyCount);
                 long time = System.nanoTime();
                 while (time - timeStartNanos < timeExpectedNanos) {

@@ -243,7 +243,7 @@ public class MergeConflationQueue<K,V> implements ExchangeConflationQueue<K,V> {
         }
 
         boolean isUnused() {
-            return awaitFinalState() == State.UNUSED;
+            return state == State.UNUSED;
         }
 
         private State awaitFinalState() {
