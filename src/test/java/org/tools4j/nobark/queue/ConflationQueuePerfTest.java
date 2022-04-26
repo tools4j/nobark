@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2022 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,12 +41,13 @@ public class ConflationQueuePerfTest {
 
     private static final String SENTINEL_KEY = "key_sentinel";
     private static final int WARMUP = 500_000;
+    private static final int TOTAL = 2_000_000;
 
     public static void main(final String[] args) throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
         final long totalUpdates = 5_000_000;
         //final double frequencyPerSecondAndKey = 500;
-        final double frequencyPerSecondAndKey = 2000;
+        final double frequencyPerSecondAndKey = 1000;
         //final double producerSleepNanos = 0;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
 
@@ -69,7 +70,7 @@ public class ConflationQueuePerfTest {
     @Test
     public void atomicConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 2000000;
+        final long totalUpdates = TOTAL;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new AtomicConflationQueue<>(
@@ -81,7 +82,7 @@ public class ConflationQueuePerfTest {
     @Test
     public void evictConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 2000000;
+        final long totalUpdates = TOTAL;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new EvictConflationQueue<>(
@@ -93,7 +94,7 @@ public class ConflationQueuePerfTest {
     @Test
     public void mergeConflationQueue() throws Exception {
         final int keyCount = 20 * 50;//markets x symbols
-        final long totalUpdates = 2000000;
+        final long totalUpdates = TOTAL;
         final double frequencyPerSecondAndKey = 1000;
         final double producerSleepNanos = 1e9 / frequencyPerSecondAndKey;
         runTest(keyCount, totalUpdates, producerSleepNanos, new MergeConflationQueue<>(
@@ -139,7 +140,7 @@ public class ConflationQueuePerfTest {
                 if (polledEntry != null) {
                     if (polledEntry.getLast() == totalUpdates) break;
                     receivedCount++;
-                    if (receivedCount > warmUp) {
+                    if (receivedCount > warmUp || receivedCount < warmUp / 2) {
                         final long receiveTime = System.nanoTime();
                         final long lastUpdateLatency = receiveTime - polledEntry.getTime();
                         final long inQueueLatency = polledEntry.getLatest() - polledEntry.getEarliest();
@@ -155,6 +156,17 @@ public class ConflationQueuePerfTest {
                         lastUpdateLatencyHistogram.recordValue(lastUpdateLatency);
                         totalLatencyHistogramOverall.recordValue(inQueueLatency + lastUpdateLatency);
                     } else {
+                        if (receivedCount == warmUp / 2) {
+                            nonConflated = 0;
+                            conflated = 0;
+                            mergedEntriesHistogram.reset();
+                            inQueueLatencyHistogram.reset();
+                            totalLatencyHistogramInQueue.reset();
+                            lastUpdateLatencyHistogram.reset();
+                            totalLatencyHistogramOverall.reset();
+                        }
+                    }
+                    if (receivedCount <= warmUp) {
                         conflatedDuringWarmup += polledEntry.getCount() - 1;
                     }
                     priceEntry = polledEntry;
@@ -179,19 +191,20 @@ public class ConflationQueuePerfTest {
 
             System.out.println();
             System.out.println("Produced:");
-            System.out.println("................. total : " + totalUpdates + " (" + ((1000 * totalUpdates) / totalMillis) + " per second)");
-            System.out.println("................ warmup : " + (warmUp+conflatedDuringWarmup));
-            System.out.println("............... counted : " + (totalUpdates-warmUp-conflatedDuringWarmup));
-            System.out.println(".... enqueued w/o merge : " + (receivedCount-warmUp) + perc(receivedCount-warmUp, totalUpdates-warmUp-conflatedDuringWarmup));
-            System.out.println("... enqueued with merge : " + conflated + perc(conflated, totalUpdates-warmUp-conflatedDuringWarmup));
+            System.out.println(".................... total : " + totalUpdates + " (" + ((1000 * totalUpdates) / totalMillis) + " per second)");
+            System.out.println("................... warmup : " + warmUp);
+            System.out.println(".. conflated during warmup : " + conflatedDuringWarmup);
+            System.out.println(".................. counted : " + (totalUpdates-warmUp-conflatedDuringWarmup));
+            System.out.println("....... enqueued w/o merge : " + (receivedCount-warmUp) + perc(receivedCount-warmUp, totalUpdates-warmUp-conflatedDuringWarmup));
+            System.out.println("...... enqueued with merge : " + conflated + perc(conflated, totalUpdates-warmUp-conflatedDuringWarmup));
 
             System.out.println();
             System.out.println("Consumed:");
-            System.out.println(".............. received : " + receivedCount + " (" + ((1000 * receivedCount) / totalMillis) + " per second)");
-            System.out.println("................ warmup : " + warmUp);
-            System.out.println("............... counted : " + (receivedCount-warmUp));
-            System.out.println("....... polled unmerged : " + nonConflated + perc(nonConflated, receivedCount-warmUp));
-            System.out.println("......... polled merged : " + (receivedCount-warmUp-nonConflated) + perc(receivedCount-warmUp-nonConflated, receivedCount-warmUp)
+            System.out.println("................. received : " + receivedCount + " (" + ((1000 * receivedCount) / totalMillis) + " per second)");
+            System.out.println("................... warmup : " + warmUp);
+            System.out.println(".................. counted : " + (receivedCount-warmUp));
+            System.out.println(".......... polled unmerged : " + nonConflated + perc(nonConflated, receivedCount-warmUp));
+            System.out.println("............ polled merged : " + (receivedCount-warmUp-nonConflated) + perc(receivedCount-warmUp-nonConflated, receivedCount-warmUp)
                                                             + String.format(" consisting of %1.1f merged entries each on average", mergedEntriesHistogram.getMean()));
         });
         consumerThread.setDaemon(true);
@@ -199,6 +212,7 @@ public class ConflationQueuePerfTest {
 
         final ConflationQueue.Appender<String, PriceEntry> appender = conflationQueue.appender();
 
+        long warmUp = WARMUP;
         final Random rnd = new Random();
         PriceEntry priceEntry = new PriceEntry();
         final long timeStartNanos = System.nanoTime();
@@ -214,7 +228,13 @@ public class ConflationQueuePerfTest {
 
             final PriceEntry exchangedEntry = appender.enqueue(key, priceEntry);
             final long timeAfter = System.nanoTime();
-            enqueueLatencyHistogram.recordValue(timeAfter - timeBefore);
+
+            final int producedCount = i + 1;
+            if (producedCount > warmUp || producedCount < warmUp / 2) {
+                enqueueLatencyHistogram.recordValue(timeAfter - timeBefore);
+            } else if (producedCount == warmUp / 2) {
+                enqueueLatencyHistogram.reset();
+            }
 
             if (exchangedEntry != null) {
                 priceEntry = exchangedEntry;

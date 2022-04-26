@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2021 nobark (tools4j), Marco Terzer, Anton Anufriev
+ * Copyright (c) 2022 nobark (tools4j), Marco Terzer, Anton Anufriev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ final class Entry<K,V> {
     static <K,V> Map<K,Entry<K,V>> eagerlyInitialiseEntryMap(final List<? extends K> allKeys,
                                                              final Supplier<V> valueFactory) {
         final Map<K,Entry<K,V>> entryMap = new HashMap<>((int)Math.ceil(allKeys.size() / 0.75));
-        //NOTE: we intentionally use index here to avoid iterator garbage
+        //noinspection ForLoopReplaceableByForEach (we intentionally use index here to avoid iterator garbage)
         for (int i = 0; i < allKeys.size(); i++) {
             final K key = allKeys.get(i);
             entryMap.put(key, new Entry<>(key, valueFactory.get()));
