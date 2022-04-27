@@ -29,7 +29,7 @@ buildscript {
 }
 
 dependencies {
-    testCompile 'org.agrona:agrona:1.12.0'
+    testCompile 'org.agrona:agrona:1.15.1'
     testCompile 'junit:junit:4.13.2'
     testCompile 'org.hdrhistogram:HdrHistogram:2.1.12'
 
