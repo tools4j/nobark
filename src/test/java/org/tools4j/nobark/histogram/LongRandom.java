@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package org.tools4j.nobark.run;
+package org.tools4j.nobark.histogram;
 
 import java.util.Random;
 
@@ -36,10 +36,8 @@ public class LongRandom extends Random {
         if ((bound & m) == 0)  // i.e., bound is a power of 2
             r >>= Long.numberOfLeadingZeros(bound);
         else {
-            for (long u = r;
-                 u - (r = u % bound) + m < 0;
-                 u = next64(63))
-                ;
+            //noinspection StatementWithEmptyBody
+            for (long u = r; u - (r = u % bound) + m < 0; u = next64(63));
         }
         return r;
     }

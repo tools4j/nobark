@@ -44,6 +44,7 @@ public interface Histogram {
      * @return recorder to track values
      */
     Recorder recorder();
+
     /**
      * Returns the {@link Reporter} API for reporting of captured values.
      * @return reporter to output captured values
@@ -95,13 +96,13 @@ public interface Histogram {
         long max();
 
         /**
-         * Returns the value at a given percentile.
-         * Returns the largest value that (1.0 - percentile) [+/- 1 ulp] of the overall recorded value entries in the
-         * histogram are either larger than or equivalent to. Returns 0 if no recorded values exist.
+         * Returns the value at a given percentile.  The returned value is the largest value that
+         * (1.0 - percentile) [+/- 1 ulp] of the overall recorded value entries in the histogram are either larger than
+         * or equivalent to. Returns zero if {@link #count() count} is zero.
          *
-         * @param percentile  The percentile for which to return the associated value
-         * @return The largest value that (100% - percentile) [+/- 1 ulp] of the overall recorded value entries
-         * in the histogram are either larger than or equivalent to. Returns 0 if no recorded values exist.
+         * @param percentile the percentile (0.0 to 1.0) for which to return the associated value
+         * @return  the largest value that (1.0 - percentile) [+/- 1 ulp] of the overall recorded value entries in the
+         *          histogram are either larger than or equivalent to, or 0 if no recorded values exist
          */
         long valueAtPercentile(double percentile);
     }
