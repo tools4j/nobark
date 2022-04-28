@@ -29,7 +29,9 @@ import org.tools4j.nobark.histogram.HistogramExperiments.IntCountByteBitHist;
 import org.tools4j.nobark.histogram.HistogramExperiments.VarCountByteBitHist;
 
 import java.util.Arrays;
+import java.util.function.LongSupplier;
 
+import static org.junit.Assert.assertTrue;
 import static org.tools4j.nobark.histogram.HistogramMetrics.printHistogramMetrics;
 
 /**
@@ -38,22 +40,52 @@ import static org.tools4j.nobark.histogram.HistogramMetrics.printHistogramMetric
  */
 public class HistogramTest {
 
+    private static final LongRandom RANDOM = new LongRandom();
+    private static final LongSupplier LOG_RANDOM = () -> {
+        final double pow10 = 17 - (int) Math.log10(1 + RANDOM.nextLong(999999999999999999L));
+        return RANDOM.nextLong((long) (10 * Math.pow(10, pow10)));
+    };
+    private static final LongSupplier GAUSS_RANDOM = () -> {
+        final double gaussian = Math.abs(RANDOM.nextGaussian());
+        return Math.round(Math.exp(gaussian*gaussian));
+    };
+
     @Test
-    public void testHistograms() {
-        final int testRuns = 3;
+    public void gausRandomLongs() {
+        randomSampleHist(GAUSS_RANDOM);
+    }
+
+    @Test
+    public void logRandomLongsWithMax() {
+        final double maxFrequency = 0.000001;
+        final LongSupplier randomWithMax = () -> {
+            if (RANDOM.nextDouble() < maxFrequency) {
+                return Long.MAX_VALUE;
+            }
+            return LOG_RANDOM.getAsLong();
+        };
+        randomSampleHist(randomWithMax);
+    }
+
+    @Test
+    public void logRandomLongs() {
+        randomSampleHist(LOG_RANDOM);
+    }
+
+    private void randomSampleHist(final LongSupplier random) {
+        final int testRuns = 1;
         final int digits = 3;
 //        final int n = 100_000;
         final int n = 1_000_000;
 //        final int n = 10_000_000;
 //        final int n = 100_000_000;
+
         for (int i = 0; i < testRuns; i++) {
-            randomSampleHist(digits, n);
+            randomSampleHist(digits, n, random);
         }
     }
 
-    private static void randomSampleHist(final int digits, final int n) {
-        final boolean testMax = false;
-        final LongRandom rand = new LongRandom();
+    private static void randomSampleHist(final int digits, final int n, final LongSupplier random) {
         final org.HdrHistogram.Histogram hist0 = new org.HdrHistogram.Histogram(1L, Long.MAX_VALUE / 2, digits);
         final org.HdrHistogram.Histogram hist1 = new PackedHistogram(1L, Long.MAX_VALUE / 2, digits);
 //        final org.tools4j.nobark.histogram.Histogram hist3 = new BitHist(digits);
@@ -66,19 +98,16 @@ public class HistogramTest {
         final Histogram hist7 = new VarCountByteBitHist(digits);
         final long[] vals = new long[n];
         for (int i = 0; i < n; i++) {
-//            final double pow10 = 8 - (int)Math.log10(1 + rand.nextInt(999999999));
-//            final long value = rand.nextInt((int)(10 * Math.pow(10, pow10)));
-            final double pow10 = 17 - (int) Math.log10(1 + rand.nextLong(999999999999999999L));
-            final long value = rand.nextLong((long) (10 * Math.pow(10, pow10)));
-            hist0.recordValue(value);
-            hist1.recordValue(value);
-            hist2.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            hist3.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            hist4.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            hist5.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            hist6.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            hist7.recorder().record(testMax && i == 0 ? Long.MAX_VALUE : value);
-            vals[i] = testMax && i == 0 ? Long.MAX_VALUE : value;
+            final long value = random.getAsLong();
+            hist0.recordValue(Math.min(value, hist0.getHighestTrackableValue()));
+            hist1.recordValue(Math.min(value, hist1.getHighestTrackableValue()));
+            hist2.recorder().record(value);
+            hist3.recorder().record(value);
+            hist4.recorder().record(value);
+            hist5.recorder().record(value);
+            hist6.recorder().record(value);
+            hist7.recorder().record(value);
+            vals[i] = value;
         }
         Arrays.sort(vals);
 
@@ -87,13 +116,14 @@ public class HistogramTest {
                 hist6.reporter().count(), hist7.reporter().count());
         for (final double p : new double[]{0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999, 0.9999999}) {
             if (eq(hist0.getValueAtPercentile(p * 100),
+                    hist1.getValueAtPercentile(p * 100),
                     hist2.reporter().valueAtPercentile(p),
                     hist3.reporter().valueAtPercentile(p),
                     hist4.reporter().valueAtPercentile(p),
                     hist5.reporter().valueAtPercentile(p),
                     hist6.reporter().valueAtPercentile(p),
-                    hist7.reporter().valueAtPercentile(p)) ||
-                    valueAtPercentile(n, p, vals) < hist2.reporter().valueAtPercentile(p)) {
+                    hist7.reporter().valueAtPercentile(p)) &&
+                    valueAtPercentile(n, p, vals) <= hist2.reporter().valueAtPercentile(p)) {
                 System.out.printf("%s=%d / %d / %d / %d / %d / %d / %d / %d / %d\n",
                         p,
                         hist0.getValueAtPercentile(p * 100),
@@ -118,6 +148,29 @@ public class HistogramTest {
                         hist7.reporter().valueAtPercentile(p),
                         valueAtPercentile(n, p, vals));
             }
+
+            if (vals[vals.length - 1] <= hist0.getHighestTrackableValue() &&
+                    vals[vals.length - 1] <= hist1.getHighestTrackableValue()) {
+                assertTrue("eq(hist[*](" + (p * 100) + "))", eq(
+                        hist0.getValueAtPercentile(p * 100),
+                        hist1.getValueAtPercentile(p * 100),
+                        hist2.reporter().valueAtPercentile(p),
+                        hist3.reporter().valueAtPercentile(p),
+                        hist4.reporter().valueAtPercentile(p),
+                        hist5.reporter().valueAtPercentile(p),
+                        hist6.reporter().valueAtPercentile(p),
+                        hist7.reporter().valueAtPercentile(p)));
+            } else {
+                assertTrue("eq(hist[*](" + (p * 100) + "))", eq(
+                        hist2.reporter().valueAtPercentile(p),
+                        hist3.reporter().valueAtPercentile(p),
+                        hist4.reporter().valueAtPercentile(p),
+                        hist5.reporter().valueAtPercentile(p),
+                        hist6.reporter().valueAtPercentile(p),
+                        hist7.reporter().valueAtPercentile(p)));
+            }
+            assertTrue("valueAt(p=" + (p * 100) + "<=hist(p)",
+                    valueAtPercentile(n, p, vals) <= hist2.reporter().valueAtPercentile(p));
         }
 
         printHistogramMetrics(hist0);

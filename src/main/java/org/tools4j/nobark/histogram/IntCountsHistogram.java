@@ -36,8 +36,6 @@ import java.util.Arrays;
  */
 public class IntCountsHistogram implements Histogram {
 
-    private static final int DIV_2_SHIFT = 1;//(a / 2) == (a >>> DIV_2_SHIFT)
-
     private final int significantBits;
     private final int bucketLength;
     private final int[][] counts;
@@ -56,8 +54,8 @@ public class IntCountsHistogram implements Histogram {
      */
     public IntCountsHistogram(final int digits) {
         this.significantBits = 1 + (int) Math.ceil(Math.log(Math.pow(10, digits))/Math.log(2));
-        this.bucketLength = 1 << significantBits;
-        this.counts = new int[64 - significantBits][];
+        this.bucketLength = 1 << (significantBits - 1);
+        this.counts = new int[64 - significantBits + 1][];
     }
 
     /**
@@ -73,12 +71,10 @@ public class IntCountsHistogram implements Histogram {
             return this;
         }
         for (int bucket = 0; bucket < counts.length; bucket++) {
-            int[] c = counts[bucket];
-            if (c == null) {
-                c = counts[bucket] = new int[bucket == 0 ? bucketLength : (bucketLength >>> DIV_2_SHIFT)];
+            if (counts[bucket] == null) {
+                counts[bucket] = new int[bucketLength];
             }
-            final int maxIndex = c.length - 1;
-            if (value <= valueAt(bucket, maxIndex)) {
+            if (value <= valueAt(bucket, bucketLength - 1)) {
                 break;
             }
         }
@@ -122,13 +118,14 @@ public class IntCountsHistogram implements Histogram {
                 throw new IllegalArgumentException("Value cannot be negative: " + value);
             }
             final int bits = 64 - Long.numberOfLeadingZeros(value);
-            final int bucket = Math.max(0, bits - significantBits);
-            final int offset = (int)(bucket == 0 ? value : (value >>> bucket) - (bucketLength >>> DIV_2_SHIFT));
+            final int bucket = Math.max(0, bits - significantBits + 1);
+            final int shift = Math.max(0, bucket - 1);
+            final int position = (int)((value >>> shift) - (bucket == 0 ? 0 : bucketLength));
             int[] c = counts[bucket];
             if (c == null) {
-                c = counts[bucket] = new int[bucket == 0 ? bucketLength : (bucketLength >>> DIV_2_SHIFT)];
+                c = counts[bucket] = new int[bucketLength];
             }
-            c[offset]++;
+            c[position]++;
             min = Math.min(min, value);
             max = Math.max(max, value);
             count++;
@@ -161,10 +158,10 @@ public class IntCountsHistogram implements Histogram {
             for (int bucket = 0; bucket < counts.length; bucket++) {
                 final int[] c;
                 if ((c = counts[bucket]) != null) {
-                    for (int index = 0; index < c.length; index++) {
-                        totalToCurrentIndex += (0xffffffffL & c[index]);
+                    for (int position = 0; position < c.length; position++) {
+                        totalToCurrentIndex += (0xffffffffL & c[position]);
                         if (totalToCurrentIndex >= countAtPercentile) {
-                            return valueAt(bucket, index);
+                            return valueAt(bucket, position);
                         }
                     }
                 }
@@ -173,9 +170,9 @@ public class IntCountsHistogram implements Histogram {
         }
     }
 
-    private long valueAt(final int bucket, final int index) {
-        final int offset = bucket == 0 ? 0 : (bucketLength >>> DIV_2_SHIFT);
-        return ((1L + offset + index) << bucket) - 1;
+    private long valueAt(final int bucket, final int position) {
+        return bucket == 0 ? position :
+                ((1L + bucketLength + position) << (bucket - 1)) - 1;
     }
 
     @Override

@@ -176,7 +176,6 @@ enum HistogramExperiments {
         }
     }
 
-
     static class ByteBitHist implements HistApi {
 
         final int significantBits;
@@ -436,7 +435,7 @@ enum HistogramExperiments {
                                         final byte[] cc = c[j];
                                         final int cnt = cc == null ? 0 : (0xff & cc[k]);
                                         totalToCurrentIndex += cnt;
-                                        if (cnt == 0xfe) {
+                                        if (cnt == 0xfe && bigCounts[i][j] != null) {
                                             totalToCurrentIndex += bigCounts[i][j][k];
                                         }
                                     }

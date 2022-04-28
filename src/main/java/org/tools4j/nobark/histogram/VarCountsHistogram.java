@@ -34,12 +34,12 @@ import java.util.Arrays;
  */
 public class VarCountsHistogram implements Histogram {
 
-    private static final int DIV_2_SHIFT    = 1;    //(a /  2) == (a >>> DIV_2_SHIFT)
     private static final int DIV_64_SHIFT   = 6;    //(a / 64) == (a >>> DIV_64_SHIFT)
     private static final int MOD_64_MASK    = 0x3f; //(a % 64) == (a & MOD_64_MASK)
 
     private final int significantBits;
     private final int bucketLength;
+    private final int bitCountsLength;
     private final long[][] bitCounts;
     private final byte[][][] byteCounts;
     private final long[][][] longCounts;
@@ -58,10 +58,11 @@ public class VarCountsHistogram implements Histogram {
      */
     public VarCountsHistogram(final int digits) {
         this.significantBits = 1 + (int) Math.ceil(Math.log(Math.pow(10, digits))/Math.log(2));
-        this.bucketLength = 1 << significantBits;
-        this.bitCounts = new long[64 - significantBits][];
-        this.byteCounts = new byte[64 - significantBits][][];
-        this.longCounts = new long[64 - significantBits][][];
+        this.bucketLength = 1 << (significantBits - 1);
+        this.bitCountsLength = (bucketLength + 63) >>> DIV_64_SHIFT;
+        this.bitCounts = new long[64 - significantBits + 1][];
+        this.byteCounts = new byte[64 - significantBits + 1][][];
+        this.longCounts = new long[64 - significantBits + 1][][];
     }
 
     /**
@@ -77,22 +78,21 @@ public class VarCountsHistogram implements Histogram {
         if (value < 0) {
             return this;
         }
+        final int maxPosition = (bitCountsLength << DIV_64_SHIFT) - 1;
         for (int bucket = 0; bucket < bitCounts.length; bucket++) {
-            final int length = ((bucket == 0 ? bucketLength : (bucketLength >>> DIV_2_SHIFT)) + 63) >>> DIV_64_SHIFT;
             final long[] bitC = bitCounts[bucket];
             if (bitC == null) {
-                bitCounts[bucket] = new long[length];
+                bitCounts[bucket] = new long[bitCountsLength];
             }
             final byte[][] byteC = byteCounts[bucket];
             if (byteC == null) {
-                byteCounts[bucket] = new byte[length][];
+                byteCounts[bucket] = new byte[bitCountsLength][];
             }
             final long[][] longC = longCounts[bucket];
             if (longC == null) {
-                longCounts[bucket] = new long[length][];
+                longCounts[bucket] = new long[bitCountsLength][];
             }
-            final int maxIndex = (length << DIV_64_SHIFT) - 1;
-            if (value <= valueAt(bucket, maxIndex)) {
+            if (value <= valueAt(bucket, maxPosition)) {
                 break;
             }
         }
@@ -156,36 +156,36 @@ public class VarCountsHistogram implements Histogram {
                 throw new IllegalArgumentException("Value cannot be negative: " + value);
             }
             final int bits = 64 - Long.numberOfLeadingZeros(value);
-            final int bucket = Math.max(0, bits - significantBits);
-            final int offset = (int)(bucket == 0 ? value : (value >>> bucket) - (bucketLength >>> DIV_2_SHIFT));
-            final int length = ((bucket == 0 ? bucketLength : (bucketLength >>> DIV_2_SHIFT)) + 63) >>> DIV_64_SHIFT;
+            final int bucket = Math.max(0, bits - significantBits + 1);
+            final int shift = Math.max(0, bucket - 1);
+            final int position = (int)((value >>> shift) - (bucket == 0 ? 0 : bucketLength));
             long[] bitC = bitCounts[bucket];
             if (bitC == null) {
-                bitC = bitCounts[bucket] = new long[length];
+                bitC = bitCounts[bucket] = new long[bitCountsLength];
             }
-            if (testOneBit(bitC, offset)) {
+            if (testOneBit(bitC, position)) {
                 byte[][] byteC = byteCounts[bucket];
                 if (byteC == null) {
-                    byteC = byteCounts[bucket] = new byte[length][];
+                    byteC = byteCounts[bucket] = new byte[bitCountsLength][];
                 }
-                byte[] byteCC = byteC[offset >>> DIV_64_SHIFT];
+                byte[] byteCC = byteC[position >>> DIV_64_SHIFT];
                 if (byteCC == null) {
-                    byteCC = byteC[offset >>> DIV_64_SHIFT] = new byte[64];
+                    byteCC = byteC[position >>> DIV_64_SHIFT] = new byte[64];
                 }
-                if ((++byteCC[offset & MOD_64_MASK]) == 0) {
-                    --byteCC[offset & MOD_64_MASK];
+                if ((++byteCC[position & MOD_64_MASK]) == 0) {
+                    --byteCC[position & MOD_64_MASK];
                     long[][] longC = longCounts[bucket];
                     if (longC == null) {
-                        longC = longCounts[bucket] = new long[length][];
+                        longC = longCounts[bucket] = new long[bitCountsLength][];
                     }
-                    long[] longCC = longC[offset >>> DIV_64_SHIFT];
+                    long[] longCC = longC[position >>> DIV_64_SHIFT];
                     if (longCC == null) {
-                        longCC = longC[offset >>> DIV_64_SHIFT] = new long[64];
+                        longCC = longC[position >>> DIV_64_SHIFT] = new long[64];
                     }
-                    longCC[offset & MOD_64_MASK]++;
+                    longCC[position & MOD_64_MASK]++;
                 }
             } else {
-                setOneBit(bitC, offset);
+                setOneBit(bitC, position);
             }
             min = Math.min(min, value);
             max = Math.max(max, value);
@@ -223,8 +223,8 @@ public class VarCountsHistogram implements Histogram {
                     for (int j = 0; j < bitC.length; j++) {
                         if (bitC[j] != 0) {
                             for (int k = 0; k < 64; k++) {
-                                final int index = (j << DIV_64_SHIFT) + k;
-                                if (testOneBit(bitC, index)) {
+                                final int position = (j << DIV_64_SHIFT) + k;
+                                if (testOneBit(bitC, position)) {
                                     totalToCurrentIndex++;
                                     final byte[][] byteC = byteCounts[i];
                                     if (byteC != null) {
@@ -240,7 +240,7 @@ public class VarCountsHistogram implements Histogram {
                                         }
                                     }
                                     if (totalToCurrentIndex >= countAtPercentile) {
-                                        return valueAt(bucket, index);
+                                        return valueAt(bucket, position);
                                     }
                                 }
                             }
@@ -253,9 +253,9 @@ public class VarCountsHistogram implements Histogram {
         }
     }
 
-    private long valueAt(final int bucket, final int index) {
-        final int offset = bucket == 0 ? 0 : (bucketLength >>> DIV_2_SHIFT);
-        return ((1L + offset + index) << bucket) - 1;
+    private long valueAt(final int bucket, final int position) {
+        return bucket == 0 ? position :
+                ((1L + bucketLength + position) << (bucket - 1)) - 1;
     }
 
     private static boolean testOneBit(final long[] ones, final int index) {
