@@ -280,7 +280,6 @@ public class VarCountsHistogram implements Histogram {
         final VarCountsHistogram that = (VarCountsHistogram) o;
 
         if (significantBits != that.significantBits) return false;
-        if (bucketLength != that.bucketLength) return false;
         if (count != that.count) return false;
         if (!Arrays.deepEquals(bitCounts, that.bitCounts)) return false;
         if (!Arrays.deepEquals(byteCounts, that.byteCounts)) return false;
@@ -290,7 +289,6 @@ public class VarCountsHistogram implements Histogram {
     @Override
     public int hashCode() {
         int result = significantBits;
-        result = 31 * result + bucketLength;
         result = 31 * result + (int) (count ^ (count >>> 32));
         result = 31 * result + Arrays.deepHashCode(bitCounts);
         result = 31 * result + Arrays.deepHashCode(byteCounts);

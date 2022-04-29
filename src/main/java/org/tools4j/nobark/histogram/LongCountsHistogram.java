@@ -183,7 +183,6 @@ public class LongCountsHistogram implements Histogram {
         final LongCountsHistogram that = (LongCountsHistogram) o;
 
         if (significantBits != that.significantBits) return false;
-        if (bucketLength != that.bucketLength) return false;
         if (count != that.count) return false;
         return Arrays.deepEquals(counts, that.counts);
     }
@@ -191,7 +190,6 @@ public class LongCountsHistogram implements Histogram {
     @Override
     public int hashCode() {
         int result = significantBits;
-        result = 31 * result + bucketLength;
         result = 31 * result + (int) (count ^ (count >>> 32));
         result = 31 * result + Arrays.deepHashCode(counts);
         return result;
