@@ -40,6 +40,10 @@ import static org.tools4j.nobark.histogram.HistogramMetrics.printHistogramMetric
  */
 public class HistogramTest {
 
+    private static final int SAMPLES = 1_000_000;
+    private static final int TEST_RUNS = 3;
+    private static final int DIGITS = 3;
+
     private static final LongRandom RANDOM = new LongRandom();
     private static final LongSupplier LOG_RANDOM = () -> {
         final double pow10 = 17 - (int) Math.log10(1 + RANDOM.nextLong(999999999999999999L));
@@ -57,7 +61,7 @@ public class HistogramTest {
 
     @Test
     public void logRandomLongsWithMax() {
-        final double maxFrequency = 0.000001;
+        final double maxFrequency = 3.0 / SAMPLES;
         final LongSupplier randomWithMax = () -> {
             if (RANDOM.nextDouble() < maxFrequency) {
                 return Long.MAX_VALUE;
@@ -73,15 +77,8 @@ public class HistogramTest {
     }
 
     private void randomSampleHist(final LongSupplier random) {
-        final int testRuns = 1;
-        final int digits = 3;
-//        final int n = 100_000;
-        final int n = 1_000_000;
-//        final int n = 10_000_000;
-//        final int n = 100_000_000;
-
-        for (int i = 0; i < testRuns; i++) {
-            randomSampleHist(digits, n, random);
+        for (int i = 0; i < TEST_RUNS; i++) {
+            randomSampleHist(DIGITS, SAMPLES, random);
         }
     }
 
