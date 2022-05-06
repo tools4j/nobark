@@ -55,7 +55,7 @@ public class HistogramTest {
     };
 
     @Test
-    public void gausRandomLongs() {
+    public void gaussRandomLongs() {
         randomSampleHist(GAUSS_RANDOM);
     }
 
